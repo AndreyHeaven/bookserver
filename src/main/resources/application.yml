@@ -1,0 +1,56 @@
+server:
+  port: 8080
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css, application/javascript, application/json
+    min-response-size: 1024
+  servlet:
+    session:
+      cookie:
+        http-only: true
+spring:
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    url: jdbc:postgresql://localhost:5432/bookserver
+    username: bookserver
+    password: bookserver
+  jpa:
+#    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+#      hibernate.temp.use_jdbc_metadata_defaults: false
+      hibernate.format_sql: true
+    show-sql: true
+
+app:
+  data-dir: "/Users/butt/Downloads/"
+  genres:
+    include:
+      - fairy_fantasy
+      - hronoopera
+      - modern_tale
+      - russian_fantasy
+      - sf
+      - sf_action
+      - sf_cyberpunk
+      - sf_detective
+      - sf_epic
+      - sf_etc
+      - sf_fantasy
+      - sf_fantasy_city
+      - sf_heroic
+      - sf_history
+      - sf_horror
+      - sf_humor
+      - sf_litrpg
+      - sf_mystic
+      - sf_postapocalyptic
+      - sf_social
+      - sf_space
+      - sf_stimpank
+      - sf_technofantasy
+#    exclude:
+  files:
+    include:
+      - "fb2-ru-ok-child-sf.inp"
+    exclude:
+      - "*-del-*"

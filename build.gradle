@@ -1,0 +1,45 @@
+plugins {
+	id 'org.springframework.boot' version '2.6.2'
+	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+	id 'java'
+	id "org.flywaydb.flyway" version "8.4.2"
+}
+
+group = 'ru.andreyheaven'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+//	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.flywaydb:flyway-core'
+
+	// https://mvnrepository.com/artifact/com.rometools/rome
+	implementation 'com.rometools:rome:1.18.0'
+	// https://mvnrepository.com/artifact/com.ibm.icu/icu4j
+	implementation 'com.ibm.icu:icu4j:70.1'
+
+	runtimeOnly 'org.postgresql:postgresql'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+}
+
+test {
+	useJUnitPlatform()
+}
+
+flyway {
+	url = 'jdbc:postgresql://localhost:5432/bookserver'
+	user = 'bookserver'
+	password = 'bookserver'
+	locations = ['classpath:db/migration']
+}
+// we need to build classes before we can migrate
+flywayMigrate.dependsOn classes
+flywayInfo.dependsOn classes
