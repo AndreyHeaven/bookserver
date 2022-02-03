@@ -12,6 +12,6 @@ public interface BookRepository extends CrudRepository<Book, Integer> {
     List<Book> findByAuthorsContains(@Param("id") Integer id);
 
     @Query("select b.id from Book b")
-    List<Integer> findAllIds();
+    Set<Integer> findAllIds();
 
 }

@@ -4,6 +4,7 @@ import org.slf4j.*;
 import org.springframework.boot.*;
 import org.springframework.boot.autoconfigure.*;
 import org.springframework.boot.context.properties.*;
+import org.springframework.cache.annotation.*;
 import org.springframework.core.env.*;
 import org.springframework.data.jpa.repository.config.*;
 import org.springframework.util.*;
@@ -13,6 +14,7 @@ import java.util.*;
 
 @SpringBootApplication
 @EnableJpaRepositories
+@EnableCaching
 @EnableConfigurationProperties(value = {AppProperties.class})
 public class BookserverApplication {
     private static final Logger log = LoggerFactory.getLogger(BookserverApplication.class);

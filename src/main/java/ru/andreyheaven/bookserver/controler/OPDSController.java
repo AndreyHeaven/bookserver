@@ -14,13 +14,62 @@ public class OPDSController {
         this.service = service;
     }
 
-
+    /**
+     * <?xml version="1.0" encoding="utf-8"?>
+     * <feed xmlns="http://www.w3.org/2005/Atom">
+     *     <id>tag:root</id>
+     *     <title>Flibusta catalog</title>
+     *     <updated>2022-01-31T02:06:26+01:00</updated>
+     *     <icon>/favicon.ico</icon>
+     *     <link href="/opds-opensearch.xml" rel="search" type="application/opensearchdescription+xml"/>
+     *     <link href="/opds/search?searchTerm={searchTerms}" rel="search" type="application/atom+xml"/>
+     *     <link href="/opds" rel="start" type="application/atom+xml;profile=opds-catalog"/>
+     *     <link href="/opds" rel="self" type="application/atom+xml;profile=opds-catalog"/>
+     *     <entry>
+     *         <updated>2022-01-31T02:06:26+01:00</updated>
+     *         <id>tag:root:new</id>
+     *         <title>Новинки</title>
+     *         <content type="text">Новые поступления за неделю</content>
+     *         <link href="/opds/new" rel="http://opds-spec.org/sort/new" type="application/atom+xml;profile=opds-catalog"/>
+     *         <link href="/opds/new" type="application/atom+xml;profile=opds-catalog"/>
+     *     </entry>
+     *     <entry>
+     *         <updated>2022-01-31T02:06:26+01:00</updated>
+     *         <id>tag:root:authors</id>
+     *         <title>По авторам</title>
+     *         <content type="text">Поиск книг по авторам</content>
+     *         <link href="/opds/authorsindex" type="application/atom+xml;profile=opds-catalog"/>
+     *     </entry>
+     *     <entry>
+     *         <updated>2022-01-31T02:06:26+01:00</updated>
+     *         <id>tag:root:sequences</id>
+     *         <title>По сериям</title>
+     *         <content type="text">Поиск книг по сериям</content>
+     *         <link href="/opds/sequencesindex" type="application/atom+xml;profile=opds-catalog"/>
+     *     </entry>
+     *     <entry>
+     *         <updated>2022-01-31T02:06:26+01:00</updated>
+     *         <id>tag:root:genre</id>
+     *         <title>По жанрам</title>
+     *         <content type="text">Поиск книг по жанрам</content>
+     *         <link href="/opds/genres" type="application/atom+xml;profile=opds-catalog"/>
+     *     </entry>
+     *     <entry>
+     *         <updated>2022-01-31T02:06:26+01:00</updated>
+     *         <id>tag:root:shelf</id>
+     *         <title>Моя полка</title>
+     *         <content type="text">Книжная полка (требуется логин)</content>
+     *         <link href="/opds/polka" type="application/atom+xml;profile=opds-catalog"/>
+     *     </entry>
+     * </feed>
+     * @return
+     */
     @GetMapping(value = "/")
     public Feed index() {
         return service.createOpds();
     }
 
-    @GetMapping(value = "/authorsindex/{author}")
+    @GetMapping(value = {"/authorsindex", "/authorsindex/{author}"})
     public Feed authorsindex(@PathVariable(name = "author", required = false) String author) {
         return service.createAuthorIndex(author);
     }

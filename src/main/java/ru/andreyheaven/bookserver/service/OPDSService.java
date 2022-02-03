@@ -3,6 +3,7 @@ package ru.andreyheaven.bookserver.service;
 import com.rometools.rome.feed.atom.*;
 import com.rometools.rome.feed.module.*;
 import com.rometools.rome.feed.synd.*;
+import org.springframework.data.util.*;
 import org.springframework.stereotype.*;
 import ru.andreyheaven.bookserver.domain.*;
 import ru.andreyheaven.bookserver.repository.*;
@@ -12,6 +13,7 @@ import java.util.stream.*;
 
 @Service
 public class OPDSService {
+    public static final String PROFILE_OPDS_CATALOG = "application/atom+xml;profile=opds-catalog";
     private final AuthorRepository authorRepository;
     private final BookRepository bookRepository;
 
@@ -22,33 +24,41 @@ public class OPDSService {
 
     public Feed createOpds() {
         Feed feed = getFeed();
-        feed.setEntries(createEntries());
-        return feed;
-    }
-
-    private List<Entry> createEntries() {
-
-        return List.of(getEntry("Новинки", "Новые поступления за неделю", "/opds/new"),
-                getEntry("По авторам", "Поиск книг по авторам", "/opds/authorsindex"));
-    }
-
-    private Entry getEntry(String title, String content, String link) {
         final Entry entry = new Entry();
         final Content contentEntry = new Content();
-        contentEntry.setValue(content);
+        contentEntry.setValue("Поиск книг по авторам");
         entry.setContents(List.of(contentEntry));
-        entry.setTitle(title);
+        entry.setTitle("По авторам");
+        entry.setId("tag:root:authors");
         final Link link1 = new Link();
-        link1.setHref(link);
+        link1.setHref("/opds/authorsindex");
+        link1.setRel(null);
+        link1.setType(PROFILE_OPDS_CATALOG);
         entry.setOtherLinks(List.of(link1));
-        return entry;
+        final Entry entry1 = new Entry();
+        final Content contentEntry1 = new Content();
+        contentEntry1.setValue("Новые поступления за неделю");
+        entry1.setContents(List.of(contentEntry1));
+        entry1.setTitle("Новинки");
+        entry1.setId("tag:root:new");
+        final Link link11 = new Link();
+        link11.setHref("/opds/new");
+        link11.setRel(null);
+        //<link href="/opds/new" rel="http://opds-spec.org/sort/new" type="application/atom+xml;profile=opds-catalog"/>
+        final Link link12 = new Link();
+        link12.setHref("/opds/new");
+        link12.setRel("http://opds-spec.org/sort/new");
+        link12.setType(PROFILE_OPDS_CATALOG);
+        entry1.setOtherLinks(List.of(link11, link12));
+        feed.setEntries(List.of(entry, entry1));
+        return feed;
     }
 
     public Feed createAuthorIndex(String author) {
         Feed feed = getFeed();
         author = author == null ? "" : author.toUpperCase(Locale.ROOT);
-        final Map<String, Long> prefixes = authorRepository.findPrefixes(author);
-        feed.setEntries(prefixes.entrySet().stream()
+        final List<Pair<String, Long>> prefixes = authorRepository.findPrefixes(author);
+        feed.setEntries(prefixes.stream()
                 .map(i -> {
                     /*
                      * <entry> <updated>2022-01-25T04:26:49+01:00</updated>
@@ -58,8 +68,8 @@ public class OPDSService {
                      *  <link href="/opds/authors/D" type="application/atom+xml;profile=opds-catalog" />
                      * </entry>
                      */
-                    final String letter = i.getKey();
-                    final Long count = i.getValue();
+                    final String letter = i.getFirst();
+                    final Long count = i.getSecond();
 
                     final Entry entry = new Entry();
                     final Content contentEntry = new Content();
@@ -73,7 +83,7 @@ public class OPDSService {
                     } else {
                         e1.setHref("/opds/authors/" + letter);
                     }
-                    e1.setType("application/atom+xml;profile=opds-catalog");
+                    e1.setType(PROFILE_OPDS_CATALOG);
                     entry.setOtherLinks(List.of(e1));
                     return entry;
                 }).collect(Collectors.toList()));
@@ -89,11 +99,11 @@ public class OPDSService {
         final Link startLink = new Link();
         startLink.setHref("/opds");
         startLink.setRel("start");
-        startLink.setType("application/atom+xml;profile=opds-catalog");
+        startLink.setType(PROFILE_OPDS_CATALOG);
         final Link selfLink = new Link();
         selfLink.setHref("/opds");
         selfLink.setRel("self");
-        selfLink.setType("application/atom+xml;profile=opds-catalog");
+        selfLink.setType(PROFILE_OPDS_CATALOG);
         //TODO
         //    <link href="/opds-opensearch.xml" rel="search" type="application/opensearchdescription+xml"/>
         //    <link href="/opds/search?searchTerm={searchTerms}" rel="search" type="application/atom+xml"/>
@@ -115,17 +125,22 @@ public class OPDSService {
                      *  <link href="/opds/authors/D" type="application/atom+xml;profile=opds-catalog" />
                      * </entry>
                      */
-                    final String letter = i.getFullName();
+                    final String fullName = i.getFullName();
 
                     final Entry entry = new Entry();
 //                    final Content contentEntry = new Content();
 //                    contentEntry.setValue(i.get("count") + " авторов на " + letter);
 //                    entry.setContents(List.of(contentEntry));
-                    entry.setTitle(letter);
-                    entry.setId("tag:authors:" + letter);
+                    entry.setTitle(fullName);
+                    entry.setId("tag:author:" + i.getId());
                     final Link e1 = new Link();
-                    e1.setHref("/opds/authors/" + letter);
-                    e1.setType("application/atom+xml;profile=opds-catalog");
+                    e1.setHref("/opds/author/" + i.getId());
+                    e1.setRel(null);
+                    e1.setType(PROFILE_OPDS_CATALOG);
+//                    final Link e2 = new Link();
+//                    e2.setHref("/opds/author/" + i.getId()+"/alphabet");
+//                    e2.setTitle("Книги автора по алфавиту");
+//                    e2.setType("application/atom+xml;profile=opds-catalog");
                     entry.setOtherLinks(List.of(e1));
                     return entry;
                 }).collect(Collectors.toList()));
@@ -136,6 +151,27 @@ public class OPDSService {
 
     public Feed getAuthor(Integer id) {
         Feed feed = getFeed();
+        final Optional<Author> byId = authorRepository.findById(id);
+
+        feed.setEntries(byId.map(author -> {
+            final Entry bio = new Entry();
+            bio.setId("tag:author:bio:"+author.getId());
+            bio.setTitle("Об авторе");
+            final Content content = new Content();
+            content.setType("text/html");
+            content.setValue(author.getFullName()); //TODO тут должно быть чтото типа биографии
+            bio.setSummary(content);
+
+            final Entry alphabet = new Entry();
+            alphabet.setId("tag:author:"+author.getId()+":alphabet");
+            alphabet.setTitle("Книги по алфавиту");
+            final Link alphabetLink = new Link();
+            alphabetLink.setRel(null);
+            alphabetLink.setHref("/opds/author/"+author.getId()+"/alphabet");
+            alphabetLink.setType(PROFILE_OPDS_CATALOG);
+            alphabet.setAlternateLinks(List.of(alphabetLink));
+            return List.of(bio, alphabet);
+        }).orElse(List.of()));
         return feed;
     }
 

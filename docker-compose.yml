@@ -1,0 +1,22 @@
+version: '3.1'
+services:
+  web:
+    image: 127.0.0.1:5000/andreyheaven/bookserver
+    depends_on:
+      - db
+    ports:
+      - "18080:8080"
+    volumes:
+      - /mnt/user/torrents/complete/Flibusta.Net:/books
+    environment:
+      - APP_DATA_DIR=/books
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/bookserver
+
+  db:
+    image: postgres:13
+    ports:
+      - "15432:5432"
+    environment:
+      - POSTGRES_DB=bookserver
+      - POSTGRES_PASSWORD=bookserver
+      - POSTGRES_USER=bookserver

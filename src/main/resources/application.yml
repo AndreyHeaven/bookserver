@@ -15,42 +15,46 @@ spring:
     username: bookserver
     password: bookserver
   jpa:
-#    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    properties:
-#      hibernate.temp.use_jdbc_metadata_defaults: false
-      hibernate.format_sql: true
-    show-sql: true
+    database-platform: org.hibernate.dialect.PostgreSQL10Dialect
+  #    properties:
+  #      hibernate.temp.use_jdbc_metadata_defaults: false
+  #      hibernate.format_sql: true
+  #    show-sql: true
+  cache:
+    cache-names: author_index, authors
+    caffeine:
+      spec: maximumSize=500,expireAfterAccess=12h
 
 app:
-  data-dir: "/Users/butt/Downloads/"
-  genres:
-    include:
-      - fairy_fantasy
-      - hronoopera
-      - modern_tale
-      - russian_fantasy
-      - sf
-      - sf_action
-      - sf_cyberpunk
-      - sf_detective
-      - sf_epic
-      - sf_etc
-      - sf_fantasy
-      - sf_fantasy_city
-      - sf_heroic
-      - sf_history
-      - sf_horror
-      - sf_humor
-      - sf_litrpg
-      - sf_mystic
-      - sf_postapocalyptic
-      - sf_social
-      - sf_space
-      - sf_stimpank
-      - sf_technofantasy
+  data-dir: "/books"
+#  genres:
+#    include:
+#      - fairy_fantasy
+#      - hronoopera
+#      - modern_tale
+#      - russian_fantasy
+#      - sf
+#      - sf_action
+#      - sf_cyberpunk
+#      - sf_detective
+#      - sf_epic
+#      - sf_etc
+#      - sf_fantasy
+#      - sf_fantasy_city
+#      - sf_heroic
+#      - sf_history
+#      - sf_horror
+#      - sf_humor
+#      - sf_litrpg
+#      - sf_mystic
+#      - sf_postapocalyptic
+#      - sf_social
+#      - sf_space
+#      - sf_stimpank
+#      - sf_technofantasy
 #    exclude:
   files:
-    include:
-      - "fb2-ru-ok-child-sf.inp"
+#    include:
+#      - "fb2-ru-ok-child-sf.inp"
     exclude:
       - "*-del-*"

@@ -1,12 +1,14 @@
 package ru.andreyheaven.bookserver.controler;
 
 import com.ibm.icu.text.*;
+import org.slf4j.*;
 import org.springframework.core.io.*;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import ru.andreyheaven.bookserver.config.*;
 import ru.andreyheaven.bookserver.domain.*;
 import ru.andreyheaven.bookserver.repository.*;
+import ru.andreyheaven.bookserver.service.*;
 import java.io.*;
 import java.nio.file.*;
 import java.util.zip.*;
@@ -14,6 +16,8 @@ import java.util.zip.*;
 @RestController
 @RequestMapping("/b")
 public class BookController {
+    private static final Logger log = LoggerFactory.getLogger(BookController.class);
+
     private final BookRepository bookRepository;
     private final AppProperties properties;
 
@@ -52,6 +56,7 @@ public class BookController {
                         .contentType(MediaType.APPLICATION_OCTET_STREAM)
                         .body(resource);
             } catch (IOException e) {
+                log.error("", e);
                 return ResponseEntity.badRequest().build();
             }
         }).orElse(ResponseEntity.notFound().build());
@@ -61,7 +66,10 @@ public class BookController {
         Transliterator toLatinTrans = Transliterator.getInstance("Cyrillic-Latin");
         final Author next = book.getAuthors().iterator().next();
         String result = toLatinTrans.transliterate(next.getSurname() + " " + book.getTitle());
-        result = result.replace(" ", "_");
+        result = result.replace(' ', '_')
+                .replace('.', '_')
+                .replace('\"', '_');
+
         return result + "." + book.getFormat();
     }
 }

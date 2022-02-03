@@ -16,7 +16,14 @@ public class IndexController {
     @GetMapping
     @ResponseBody
     public String index() throws IOException {
-        inpxReaderService.readFile();
         return "index";
     }
+
+    @GetMapping("reload")
+    @ResponseBody
+    public String reload() throws IOException {
+        inpxReaderService.readFile();
+        return "reload";
+    }
+
 }
