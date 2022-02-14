@@ -14,17 +14,16 @@ spring:
     url: jdbc:postgresql://localhost:5432/bookserver
     username: bookserver
     password: bookserver
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQL10Dialect
+#  jpa:
+#    database-platform: org.hibernate.dialect.PostgreSQL10Dialect
   #    properties:
   #      hibernate.temp.use_jdbc_metadata_defaults: false
   #      hibernate.format_sql: true
   #    show-sql: true
   cache:
-    cache-names: author_index, authors
+    cache-names: author_index, authors, author, genre
     caffeine:
       spec: maximumSize=500,expireAfterAccess=12h
-
 app:
   data-dir: "/books"
 #  genres:
@@ -55,6 +54,11 @@ app:
 #    exclude:
   files:
 #    include:
-#      - "fb2-ru-ok-child-sf.inp"
+#      - "usr-be-ok-art-sci.inp"
     exclude:
       - "*-del-*"
+  langs:
+    - ru
+logging:
+  level:
+    org.springframework.jdbc.core.JdbcTemplate: debug

@@ -1,14 +1,14 @@
 package ru.andreyheaven.bookserver.domain;
 
-import javax.persistence.*;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.*;
 import java.util.*;
 
-@Entity
-@Table(name = "authors")
+@Table("authors")
 public class Author {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", unique = true, nullable = false)
+//    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column("id")
     private Integer id;
     private String surname;
     private String name;

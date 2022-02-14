@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 import ru.andreyheaven.bookserver.config.*;
 import ru.andreyheaven.bookserver.domain.*;
 import ru.andreyheaven.bookserver.repository.*;
-import ru.andreyheaven.bookserver.service.*;
 import java.io.*;
 import java.nio.file.*;
 import java.util.zip.*;
@@ -32,7 +31,7 @@ public class BookController {
     }
 
     @GetMapping(value = "/{id}/{format}", produces = "application/zip")
-    public ResponseEntity<?> download(@PathVariable("id") Integer id,@PathVariable("format") String format) {
+    public ResponseEntity<?> download(@PathVariable("id") Integer id, @PathVariable("format") String format) {
         return bookRepository.findById(id).map(book -> {
             final var zip = Path.of(properties.getDataDir(), book.getArchive());
             final var fileName = getFileName(book);
@@ -51,7 +50,7 @@ public class BookController {
                 InputStreamResource resource = new InputStreamResource(new FileInputStream(tempFile));
 
                 return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName+".zip")
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName + ".zip")
                         .contentLength(tempFile.length())
                         .contentType(MediaType.APPLICATION_OCTET_STREAM)
                         .body(resource);
@@ -64,7 +63,7 @@ public class BookController {
 
     private String getFileName(Book book) {
         Transliterator toLatinTrans = Transliterator.getInstance("Cyrillic-Latin");
-        final Author next = book.getAuthors().iterator().next();
+        final Author next = new Author("");// book.getAuthors().iterator().next();
         String result = toLatinTrans.transliterate(next.getSurname() + " " + book.getTitle());
         result = result.replace(' ', '_')
                 .replace('.', '_')

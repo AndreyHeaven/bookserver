@@ -6,14 +6,14 @@ import org.springframework.boot.autoconfigure.*;
 import org.springframework.boot.context.properties.*;
 import org.springframework.cache.annotation.*;
 import org.springframework.core.env.*;
-import org.springframework.data.jpa.repository.config.*;
+import org.springframework.data.jdbc.repository.config.*;
 import org.springframework.util.*;
 import ru.andreyheaven.bookserver.config.*;
 import java.net.*;
 import java.util.*;
 
 @SpringBootApplication
-@EnableJpaRepositories
+@EnableJdbcRepositories
 @EnableCaching
 @EnableConfigurationProperties(value = {AppProperties.class})
 public class BookserverApplication {

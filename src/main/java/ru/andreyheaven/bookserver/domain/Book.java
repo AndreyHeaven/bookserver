@@ -1,38 +1,41 @@
 package ru.andreyheaven.bookserver.domain;
 
-import javax.persistence.*;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.*;
 import java.time.*;
 import java.util.*;
 
-@Entity
-@Table(name = "books")
+@Table("books")
 public class Book {
-    @ManyToMany
-    @JoinTable(name = "books_authors",
-            joinColumns =
-            @JoinColumn(name = "book_id", referencedColumnName = "id"),
-            inverseJoinColumns =
-            @JoinColumn(name = "author_id", referencedColumnName = "id")
-    )
-    private Collection<Author> authors; // 0
-
-    @ManyToMany
-    @JoinTable(name = "books_genres",
-            joinColumns =
-            @JoinColumn(name = "book_id", referencedColumnName = "id"),
-            inverseJoinColumns =
-            @JoinColumn(name = "genre_id", referencedColumnName = "code")
-    )
-    private Collection<Genre> genres; // 1
+//    @ManyToMany
+//    @JoinTable(name = "books_authors",
+//            joinColumns =
+//            @JoinColumn(name = "book_id", referencedColumnName = "id"),
+//            inverseJoinColumns =
+//            @JoinColumn(name = "author_id", referencedColumnName = "id")
+//    )
+//    @MappedCollection(idColumn = "book_id")
+    @Column("authors")
+    private Integer[] authorsIds; // 0
+//    @ManyToMany
+//    @JoinTable(name = "books_genres",
+//            joinColumns =
+//            @JoinColumn(name = "book_id", referencedColumnName = "id"),
+//            inverseJoinColumns =
+//            @JoinColumn(name = "genre_id", referencedColumnName = "code")
+//    )
+//    @MappedCollection(idColumn = "book_id")
+    @Column("genres")
+    private String[] genresCodes; // 1
     private String title; // 2
     private String seriesId; //3
     private String seqNumber; //4
     @Id
-    @Column(name = "id", unique = true, nullable = false)
+    @Column("id")
     private Integer id;//5
-    @Column(name = "uncompressed_size", nullable = false)
+    @Column("uncompressed_size")
     private Integer uncompressedSize; //6
-    @Column(name = "file_id", nullable = false)
+    @Column("file_id")
     private String fileID;  //7
     private Boolean isDeleted; //8
     private String isbn;
@@ -40,7 +43,7 @@ public class Book {
     private LocalDate pubdate; //10
 //    private String libRate; //11
 
-    @Column(name = "archive", nullable = false)
+    @Column("archive")
     private String archive; //12
     private String lang; //13
 //    private String folder; //14
@@ -54,8 +57,8 @@ public class Book {
     public Book(Collection<Author> authors, Collection<Genre> genres, String title, String seriesId,
                 String seqNumber, Integer id, Integer uncompressedSize, String fileID, Boolean isDeleted,
                 String format, LocalDate pubdate, String archive, String lang) {
-        this.authors = authors;
-        this.genres = genres;
+        this.authorsIds = authors.stream().map(Author::getId).toArray(Integer[]::new);
+        this.genresCodes = genres.stream().map(Genre::getCode).toArray(String[]::new);
         this.title = title;
         this.seriesId = seriesId;
         this.seqNumber = seqNumber;
@@ -69,12 +72,12 @@ public class Book {
         this.lang = lang;
     }
 
-    public Collection<Author> getAuthors() {
-        return authors;
+    public Integer[] getAuthors() {
+        return authorsIds;
     }
 
-    public Collection<Genre> getGenres() {
-        return genres;
+    public String[] getGenres() {
+        return genresCodes;
     }
 
     public String getTitle() {
