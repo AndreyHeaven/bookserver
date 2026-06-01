@@ -1,0 +1,77 @@
+# --- Java / Gradle ---
+.gradle/
+build/
+out/
+*.class
+*.log
+
+# --- Gradle extras ---
+gradle-app.setting
+.gradletasknamecache
+
+# --- IntelliJ IDEA ---
+*.iml
+*.iws
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/dictionaries
+.idea/shelf
+.idea/dataSources/
+.idea/dataSources.local.xml
+.idea/sqlDataSources.xml
+.idea/uiDesigner.xml
+.idea/misc.xml
+.idea/httpRequests/
+.idea/jarRepositories.xml
+.idea/libraries-with-intellij-classes.xml
+.idea/caches/
+.idea/inspectionProfiles/Profile_Default.xml
+
+# --- Node / Vue (frontend, populated in Task 09) ---
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.vite/
+frontend/coverage/
+frontend/.eslintcache
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# --- OS-specific ---
+.DS_Store
+Thumbs.db
+*.swp
+
+# --- Local data / runtime artifacts ---
+/data/
+*.local
+*.tmp
+*.bak
+
+# --- Secrets / local config ---
+.env
+.env.*
+!.env.example
+application-local.yml
+application-*.local.yml
+application-secrets.yml
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+*.keystore
+credentials.json
+secrets.yml
+
+# --- Heavy SQL dumps (>50 MB, kept locally as reference for Task 06 importers) ---
+# Light SQL files (e.g. sql/lib.libgenrelist.sql with 298 genres) remain in git
+# because Task 02 seeds them. Only the historical bulk dumps are excluded.
+sql/lib.a.annotations.sql
+sql/lib.b.annotations.sql
+sql/lib.libbook.sql
+sql/lib.librate.sql
+sql/lib.reviews.sql
