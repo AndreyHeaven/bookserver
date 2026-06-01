@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bookserver
+    username: ${DB_USERNAME:bookserver}
+    password: ${DB_PASSWORD:bookserver}
+    driver-class-name: org.postgresql.Driver
+
+app:
+  security:
+    jwt:
+      # DEV ONLY — replace via JWT_SECRET env in prod.
+      # Secret must be >= 32 characters for HS256.
+      secret: ${JWT_SECRET:dev-secret-CHANGE-IN-PROD-min-32-characters-long-please}
+
+logging:
+  level:
+    root: INFO
+    com.example.bookserver: DEBUG
+    org.hibernate.SQL: DEBUG

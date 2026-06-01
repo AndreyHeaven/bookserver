@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+app:
+  security:
+    jwt:
+      # Required, no default — fail-fast on startup if not set.
+      secret: ${JWT_SECRET}
+
+logging:
+  level:
+    root: INFO

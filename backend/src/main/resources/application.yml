@@ -1,5 +1,48 @@
-server:
-  port: 8080
 spring:
   application:
     name: bookserver
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          lob:
+            non_contextual_creation: true
+  liquibase:
+    change-log: classpath:/db/changelog/db.changelog-master.xml
+    enabled: true
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:}
+      access-token-ttl: 15m
+      refresh-token-ttl: 30d
+  public:
+    base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
+  storage:
+    books-dir: ${APP_STORAGE_BOOKS_DIR:./data/books}
+  imports:
+    base-dir: ${APP_IMPORTS_BASE_DIR:./data/imports}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
