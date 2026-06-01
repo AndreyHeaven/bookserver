@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- ============================================================ -->
+    <!-- 001 - Core domain tables                                     -->
+    <!-- ============================================================ -->
+
+    <!-- ===== genres ===== -->
+    <changeSet id="001-001-create-genres" author="bookserver">
+        <createTable tableName="genres">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(64)">
+                <constraints unique="true" uniqueConstraintName="uk_genres_code"/>
+            </column>
+            <column name="parent_id" type="BIGINT"/>
+            <column name="title" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="meta_section" type="VARCHAR(128)"/>
+            <column name="position" type="INT"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="genres" baseColumnNames="parent_id"
+                referencedTableName="genres" referencedColumnNames="id"
+                constraintName="fk_genres_parent"
+                onDelete="SET NULL"/>
+        <createIndex tableName="genres" indexName="idx_genres_parent_id">
+            <column name="parent_id"/>
+        </createIndex>
+        <createIndex tableName="genres" indexName="idx_genres_meta_section">
+            <column name="meta_section"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="genres"/>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== persons (authors + translators) ===== -->
+    <changeSet id="001-002-create-persons" author="bookserver">
+        <createTable tableName="persons">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="last_name" type="VARCHAR(128)"/>
+            <column name="first_name" type="VARCHAR(128)"/>
+            <column name="middle_name" type="VARCHAR(128)"/>
+            <column name="master_id" type="BIGINT"/>
+            <column name="fts_tsv" type="TSVECTOR"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="persons" baseColumnNames="master_id"
+                referencedTableName="persons" referencedColumnNames="id"
+                constraintName="fk_persons_master"
+                onDelete="SET NULL"/>
+        <createIndex tableName="persons" indexName="idx_persons_last_name">
+            <column name="last_name"/>
+        </createIndex>
+        <createIndex tableName="persons" indexName="idx_persons_first_name">
+            <column name="first_name"/>
+        </createIndex>
+        <createIndex tableName="persons" indexName="idx_persons_master_id">
+            <column name="master_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="persons"/>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== series ===== -->
+    <changeSet id="001-003-create-series" author="bookserver">
+        <createTable tableName="series">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="series" indexName="idx_series_title">
+            <column name="title"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="series"/>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== books ===== -->
+    <changeSet id="001-004-create-books" author="bookserver">
+        <createTable tableName="books">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(1024)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lang" type="VARCHAR(8)"/>
+            <column name="year" type="INT"/>
+            <column name="file_size" type="BIGINT"/>
+            <column name="file_type" type="VARCHAR(16)"/>
+            <column name="md5" type="VARCHAR(32)"/>
+            <column name="archive_name" type="VARCHAR(512)"/>
+            <column name="inpx_source" type="VARCHAR(512)"/>
+            <column name="deleted" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="keywords" type="TEXT"/>
+            <column name="fts_tsv" type="TSVECTOR"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="books" indexName="idx_books_lang">
+            <column name="lang"/>
+        </createIndex>
+        <createIndex tableName="books" indexName="idx_books_year">
+            <column name="year"/>
+        </createIndex>
+        <createIndex tableName="books" indexName="idx_books_file_type">
+            <column name="file_type"/>
+        </createIndex>
+        <createIndex tableName="books" indexName="idx_books_deleted">
+            <column name="deleted"/>
+        </createIndex>
+        <createIndex tableName="books" indexName="idx_books_md5">
+            <column name="md5"/>
+        </createIndex>
+        <createIndex tableName="books" indexName="idx_books_archive_name">
+            <column name="archive_name"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="books"/>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== book_authors ===== -->
+    <changeSet id="001-005-create-book-authors" author="bookserver">
+        <createTable tableName="book_authors">
+            <column name="book_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="person_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="position" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="book_authors" columnNames="book_id, person_id"
+                       constraintName="pk_book_authors"/>
+        <addForeignKeyConstraint
+                baseTableName="book_authors" baseColumnNames="book_id"
+                referencedTableName="books" referencedColumnNames="id"
+                constraintName="fk_book_authors_book"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="book_authors" baseColumnNames="person_id"
+                referencedTableName="persons" referencedColumnNames="id"
+                constraintName="fk_book_authors_person"
+                onDelete="CASCADE"/>
+        <createIndex tableName="book_authors" indexName="idx_book_authors_person_id">
+            <column name="person_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="book_authors"/>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== book_translators ===== -->
+    <changeSet id="001-006-create-book-translators" author="bookserver">
+        <createTable tableName="book_translators">
+            <column name="book_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="person_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="position" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="book_translators" columnNames="book_id, person_id"
+                       constraintName="pk_book_translators"/>
+        <addForeignKeyConstraint
+                baseTableName="book_translators" baseColumnNames="book_id"
+                referencedTableName="books" referencedColumnNames="id"
+                constraintName="fk_book_translators_book"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="book_translators" baseColumnNames="person_id"
+                referencedTableName="persons" referencedColumnNames="id"
+                constraintName="fk_book_translators_person"
+                onDelete="CASCADE"/>
+        <createIndex tableName="book_translators" indexName="idx_book_translators_person_id">
+            <column name="person_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="book_translators"/>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== book_genres ===== -->
+    <changeSet id="001-007-create-book-genres" author="bookserver">
+        <createTable tableName="book_genres">
+            <column name="book_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="genre_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="book_genres" columnNames="book_id, genre_id"
+                       constraintName="pk_book_genres"/>
+        <addForeignKeyConstraint
+                baseTableName="book_genres" baseColumnNames="book_id"
+                referencedTableName="books" referencedColumnNames="id"
+                constraintName="fk_book_genres_book"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="book_genres" baseColumnNames="genre_id"
+                referencedTableName="genres" referencedColumnNames="id"
+                constraintName="fk_book_genres_genre"
+                onDelete="CASCADE"/>
+        <createIndex tableName="book_genres" indexName="idx_book_genres_genre_id">
+            <column name="genre_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="book_genres"/>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== book_series_members ===== -->
+    <changeSet id="001-008-create-book-series-members" author="bookserver">
+        <createTable tableName="book_series_members">
+            <column name="book_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="series_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sequence_number" type="INT"/>
+        </createTable>
+        <addPrimaryKey tableName="book_series_members" columnNames="book_id, series_id"
+                       constraintName="pk_book_series_members"/>
+        <addForeignKeyConstraint
+                baseTableName="book_series_members" baseColumnNames="book_id"
+                referencedTableName="books" referencedColumnNames="id"
+                constraintName="fk_book_series_members_book"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="book_series_members" baseColumnNames="series_id"
+                referencedTableName="series" referencedColumnNames="id"
+                constraintName="fk_book_series_members_series"
+                onDelete="CASCADE"/>
+        <createIndex tableName="book_series_members" indexName="idx_book_series_members_series_id">
+            <column name="series_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="book_series_members"/>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== book_files ===== -->
+    <changeSet id="001-009-create-book-files" author="bookserver">
+        <createTable tableName="book_files">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="book_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="format" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="storage_path" type="VARCHAR(1024)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_book_files_storage_path"/>
+            </column>
+            <column name="size_bytes" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="book_files" baseColumnNames="book_id"
+                referencedTableName="books" referencedColumnNames="id"
+                constraintName="fk_book_files_book"
+                onDelete="CASCADE"/>
+        <createIndex tableName="book_files" indexName="idx_book_files_book_id">
+            <column name="book_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="book_files"/>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== annotations (1:1 to book) ===== -->
+    <changeSet id="001-010-create-annotations" author="bookserver">
+        <createTable tableName="annotations">
+            <column name="book_id" type="BIGINT">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="body" type="TEXT"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="annotations" baseColumnNames="book_id"
+                referencedTableName="books" referencedColumnNames="id"
+                constraintName="fk_annotations_book"
+                onDelete="CASCADE"/>
+        <rollback>
+            <dropTable tableName="annotations"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

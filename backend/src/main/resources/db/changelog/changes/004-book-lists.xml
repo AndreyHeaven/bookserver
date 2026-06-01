@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- ============================================================ -->
+    <!-- 004 - User book lists + items + public share tokens          -->
+    <!-- ============================================================ -->
+
+    <changeSet id="004-001-create-book-lists" author="bookserver">
+        <createTable tableName="book_lists">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="owner_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="book_lists" baseColumnNames="owner_id"
+                referencedTableName="users" referencedColumnNames="id"
+                constraintName="fk_book_lists_owner"
+                onDelete="CASCADE"/>
+        <createIndex tableName="book_lists" indexName="idx_book_lists_owner_id">
+            <column name="owner_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="book_lists"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="004-002-create-book-list-items" author="bookserver">
+        <createTable tableName="book_list_items">
+            <column name="list_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="book_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="position" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="book_list_items" columnNames="list_id, book_id"
+                       constraintName="pk_book_list_items"/>
+        <addForeignKeyConstraint
+                baseTableName="book_list_items" baseColumnNames="list_id"
+                referencedTableName="book_lists" referencedColumnNames="id"
+                constraintName="fk_book_list_items_list"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="book_list_items" baseColumnNames="book_id"
+                referencedTableName="books" referencedColumnNames="id"
+                constraintName="fk_book_list_items_book"
+                onDelete="CASCADE"/>
+        <createIndex tableName="book_list_items" indexName="idx_book_list_items_book_id">
+            <column name="book_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="book_list_items"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="004-003-create-book-list-shares" author="bookserver">
+        <createTable tableName="book_list_shares">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="list_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="share_token" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_book_list_shares_token"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="book_list_shares" baseColumnNames="list_id"
+                referencedTableName="book_lists" referencedColumnNames="id"
+                constraintName="fk_book_list_shares_list"
+                onDelete="CASCADE"/>
+        <createIndex tableName="book_list_shares" indexName="idx_book_list_shares_list_id">
+            <column name="list_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="book_list_shares"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

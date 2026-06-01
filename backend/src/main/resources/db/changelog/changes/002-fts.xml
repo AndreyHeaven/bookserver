@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- ============================================================ -->
+    <!-- 002 - Full-text search (tsvector + GIN + triggers)           -->
+    <!--                                                              -->
+    <!-- Configuration : russian                                      -->
+    <!-- Weights       : A = title, B = authors, C = keywords         -->
+    <!-- ============================================================ -->
+
+    <!-- ===== books_fts_compute(title, keywords, authors) ===== -->
+    <changeSet id="002-001-fn-books-fts-compute" author="bookserver">
+        <sql splitStatements="false" endDelimiter=";;">
+            CREATE OR REPLACE FUNCTION books_fts_compute(
+                p_title    text,
+                p_keywords text,
+                p_authors  text
+            ) RETURNS tsvector AS $$
+            BEGIN
+                RETURN
+                    setweight(to_tsvector('russian', coalesce(p_title,    '')), 'A') ||
+                    setweight(to_tsvector('russian', coalesce(p_authors,  '')), 'B') ||
+                    setweight(to_tsvector('russian', coalesce(p_keywords, '')), 'C');
+            END;
+            $$ LANGUAGE plpgsql IMMUTABLE;;
+        </sql>
+        <rollback>
+            <sql>DROP FUNCTION IF EXISTS books_fts_compute(text, text, text);</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== Trigger function: books.fts_tsv on INSERT/UPDATE ===== -->
+    <changeSet id="002-002-fn-books-fts-trigger" author="bookserver">
+        <sql splitStatements="false" endDelimiter=";;">
+            CREATE OR REPLACE FUNCTION books_fts_trigger() RETURNS trigger AS $$
+            DECLARE
+                v_authors text;
+            BEGIN
+                SELECT string_agg(
+                           coalesce(p.last_name,   '') || ' ' ||
+                           coalesce(p.first_name,  '') || ' ' ||
+                           coalesce(p.middle_name, ''),
+                           ' ')
+                  INTO v_authors
+                  FROM book_authors ba
+                  JOIN persons p ON p.id = ba.person_id
+                 WHERE ba.book_id = NEW.id;
+
+                NEW.fts_tsv := books_fts_compute(NEW.title, NEW.keywords, v_authors);
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;;
+        </sql>
+        <rollback>
+            <sql>DROP FUNCTION IF EXISTS books_fts_trigger();</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="002-003-trg-books-fts" author="bookserver">
+        <sql splitStatements="false" endDelimiter=";;">
+            CREATE TRIGGER trg_books_fts
+            BEFORE INSERT OR UPDATE OF title, keywords
+            ON books
+            FOR EACH ROW
+            EXECUTE FUNCTION books_fts_trigger();;
+        </sql>
+        <rollback>
+            <sql>DROP TRIGGER IF EXISTS trg_books_fts ON books;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== Trigger function: re-compute books.fts_tsv when authors change ===== -->
+    <changeSet id="002-004-fn-book-authors-fts-trigger" author="bookserver">
+        <sql splitStatements="false" endDelimiter=";;">
+            CREATE OR REPLACE FUNCTION book_authors_fts_trigger() RETURNS trigger AS $$
+            DECLARE
+                v_book_id bigint;
+                v_authors text;
+                v_title   text;
+                v_keywords text;
+            BEGIN
+                IF TG_OP = 'DELETE' THEN
+                    v_book_id := OLD.book_id;
+                ELSE
+                    v_book_id := NEW.book_id;
+                END IF;
+
+                SELECT string_agg(
+                           coalesce(p.last_name,   '') || ' ' ||
+                           coalesce(p.first_name,  '') || ' ' ||
+                           coalesce(p.middle_name, ''),
+                           ' ')
+                  INTO v_authors
+                  FROM book_authors ba
+                  JOIN persons p ON p.id = ba.person_id
+                 WHERE ba.book_id = v_book_id;
+
+                SELECT title, keywords INTO v_title, v_keywords
+                  FROM books WHERE id = v_book_id;
+
+                UPDATE books
+                   SET fts_tsv = books_fts_compute(v_title, v_keywords, v_authors)
+                 WHERE id = v_book_id;
+
+                IF TG_OP = 'DELETE' THEN
+                    RETURN OLD;
+                ELSE
+                    RETURN NEW;
+                END IF;
+            END;
+            $$ LANGUAGE plpgsql;;
+        </sql>
+        <rollback>
+            <sql>DROP FUNCTION IF EXISTS book_authors_fts_trigger();</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="002-005-trg-book-authors-fts" author="bookserver">
+        <sql splitStatements="false" endDelimiter=";;">
+            CREATE TRIGGER trg_book_authors_fts
+            AFTER INSERT OR UPDATE OR DELETE
+            ON book_authors
+            FOR EACH ROW
+            EXECUTE FUNCTION book_authors_fts_trigger();;
+        </sql>
+        <rollback>
+            <sql>DROP TRIGGER IF EXISTS trg_book_authors_fts ON book_authors;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== GIN index on books.fts_tsv ===== -->
+    <changeSet id="002-006-idx-books-fts" author="bookserver">
+        <sql>CREATE INDEX books_fts_idx ON books USING GIN (fts_tsv);</sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS books_fts_idx;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== Trigger function: persons.fts_tsv on INSERT/UPDATE ===== -->
+    <changeSet id="002-007-fn-persons-fts-trigger" author="bookserver">
+        <sql splitStatements="false" endDelimiter=";;">
+            CREATE OR REPLACE FUNCTION persons_fts_trigger() RETURNS trigger AS $$
+            BEGIN
+                NEW.fts_tsv := to_tsvector('russian',
+                    coalesce(NEW.last_name,   '') || ' ' ||
+                    coalesce(NEW.first_name,  '') || ' ' ||
+                    coalesce(NEW.middle_name, ''));
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;;
+        </sql>
+        <rollback>
+            <sql>DROP FUNCTION IF EXISTS persons_fts_trigger();</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="002-008-trg-persons-fts" author="bookserver">
+        <sql splitStatements="false" endDelimiter=";;">
+            CREATE TRIGGER trg_persons_fts
+            BEFORE INSERT OR UPDATE OF last_name, first_name, middle_name
+            ON persons
+            FOR EACH ROW
+            EXECUTE FUNCTION persons_fts_trigger();;
+        </sql>
+        <rollback>
+            <sql>DROP TRIGGER IF EXISTS trg_persons_fts ON persons;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ===== GIN index on persons.fts_tsv ===== -->
+    <changeSet id="002-009-idx-persons-fts" author="bookserver">
+        <sql>CREATE INDEX persons_fts_idx ON persons USING GIN (fts_tsv);</sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS persons_fts_idx;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

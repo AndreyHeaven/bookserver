@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- ============================================================ -->
+    <!-- 006 - Seed genres (from sql/lib.libgenrelist.sql -> CSV)     -->
+    <!--                                                              -->
+    <!-- 272 rows (source MySQL dump has 272 records, the original    -->
+    <!-- AUTO_INCREMENT next-value was 298 but actual data count is   -->
+    <!-- 272 unique GenreCode values; gaps exist in GenreId column).  -->
+    <!-- ============================================================ -->
+
+    <changeSet id="006-001-seed-genres" author="bookserver">
+        <loadData file="db/changelog/seed/genres.csv"
+                  tableName="genres"
+                  separator=","
+                  quotchar="&quot;"
+                  encoding="UTF-8"
+                  usePreparedStatements="true">
+            <column header="code" name="code" type="STRING"/>
+            <column header="parent_id" name="parent_id" type="NUMERIC"/>
+            <column header="title" name="title" type="STRING"/>
+            <column header="meta_section" name="meta_section" type="STRING"/>
+            <column header="position" name="position" type="NUMERIC"/>
+        </loadData>
+        <rollback>
+            <delete tableName="genres"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

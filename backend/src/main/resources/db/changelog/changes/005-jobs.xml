@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- ============================================================ -->
+    <!-- 005 - Asynchronous jobs                                       -->
+    <!--                                                              -->
+    <!-- import_jobs       : inpx / fb2 / zip ingest pipeline         -->
+    <!-- conversion_jobs   : format conversion (fb2 -> epub/pdf/...)  -->
+    <!--                                                              -->
+    <!-- Statuses         : PENDING, RUNNING, SUCCEEDED, FAILED,      -->
+    <!--                    CANCELLED                                 -->
+    <!-- ============================================================ -->
+
+    <changeSet id="005-001-create-import-jobs" author="bookserver">
+        <createTable tableName="import_jobs">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="importer_type" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_path" type="VARCHAR(1024)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(16)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="started_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="finished_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="total_count" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="processed_count" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <sql>
+            ALTER TABLE import_jobs
+            ADD CONSTRAINT chk_import_jobs_status
+            CHECK (status IN ('PENDING','RUNNING','SUCCEEDED','FAILED','CANCELLED'));
+        </sql>
+        <createIndex tableName="import_jobs" indexName="idx_import_jobs_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="import_jobs" indexName="idx_import_jobs_created_at">
+            <column name="created_at"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="import_jobs"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="005-002-create-conversion-jobs" author="bookserver">
+        <createTable tableName="conversion_jobs">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="book_file_id" type="BIGINT"/>
+            <column name="target_format" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(16)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="TEXT"/>
+            <column name="output_book_file_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="started_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="finished_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="conversion_jobs" baseColumnNames="book_file_id"
+                referencedTableName="book_files" referencedColumnNames="id"
+                constraintName="fk_conversion_jobs_book_file"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="conversion_jobs" baseColumnNames="output_book_file_id"
+                referencedTableName="book_files" referencedColumnNames="id"
+                constraintName="fk_conversion_jobs_output"
+                onDelete="SET NULL"/>
+        <sql>
+            ALTER TABLE conversion_jobs
+            ADD CONSTRAINT chk_conversion_jobs_status
+            CHECK (status IN ('PENDING','RUNNING','SUCCEEDED','FAILED','CANCELLED'));
+        </sql>
+        <createIndex tableName="conversion_jobs" indexName="idx_conversion_jobs_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="conversion_jobs" indexName="idx_conversion_jobs_book_file_id">
+            <column name="book_file_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="conversion_jobs"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
