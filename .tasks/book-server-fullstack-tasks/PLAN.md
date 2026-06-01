@@ -47,7 +47,7 @@
 - **NG4.** Production-grade deployment, HA, мониторинг, наблюдаемость.
 
 ### Acceptance Scenarios
-- **S1.** После `docker compose up` Liquibase накатывает все changeset-ы, в таблице `genres` 298 записей.
+- **S1.** После `docker compose up` Liquibase накатывает все changeset-ы, в таблице `genres` **~272 жанра** (соответствует реальному числу записей в `sql/lib.libgenrelist.sql`).
 - **S2.** Пользователь регистрируется, логинится, получает JWT; защищённые endpoints отвергают запросы без токена.
 - **S3.** `InpxZipImporter` принимает путь к папке с `.inpx` и `.zip`: книги, авторы, серии, жанры появляются в БД, tsvector-колонки заполнены, статус задачи виден в `/api/imports/{id}`.
 - **S4.** `Fb2FolderImporter` принимает путь к папке с `.fb2`: метаданные парсятся, книга и `BookFile` сохраняются.
@@ -67,7 +67,11 @@
 7. If the plan becomes stale, update the relevant files before continuing.
 
 ## Task Checklist
-- [ ] `task-01-gradle-monorepo-skeleton.md`: Gradle monorepo skeleton — Suggested agent: Code — Covers: R1
+- [x] `task-01-gradle-monorepo-skeleton.md`: Gradle monorepo skeleton — Suggested agent: Code — Covers: R1 — ✅ done (commits: `cdf9769` task-01 amended, `2ef9497` docs); fix-wave закрыл 7 TP findings (секреты в .gitignore, тяжёлые SQL вынесены из git, .idea/misc.xml вынесён, gradle auto-download).
+
+    **Follow-up в Task 03**: заменить кастомный `HealthController` на `spring-boot-starter-actuator` (B-F9), добавить `pluginManagement` / `dependencyResolutionManagement` (A-F2), профили `application-{dev,prod,test}.yml` (B-F7).
+
+    **Follow-up в Task 10**: полный README с требованиями JDK 25 (B-F10), `vendor` в toolchain (A-F4), Docker-related настройки.
 - [ ] `task-02-postgres-schema-liquibase-seed.md`: PostgreSQL schema + Liquibase XML + seed — Suggested agent: Code — Covers: R2, R3, S1
 - [ ] `task-03-backend-core-security-openapi.md`: Backend core (Spring Boot 4, Security, JWT, OpenAPI) — Suggested agent: Code — Covers: R1, R2, S2
 - [ ] `task-04-jpa-entities-repositories.md`: JPA entities + repositories — Suggested agent: Code — Covers: R2, R3

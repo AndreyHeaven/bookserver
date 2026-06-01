@@ -22,9 +22,9 @@ Liquibase XML — выбранный пользователем инструме
 ## Required Inputs
 - Папка `sql/` с 18 MySQL-дампами. Подробный разбор — в `research/ask-01-db-schema/db-schema.md`.
 - Ключевые исходные таблицы и сущности (из research):
-  - книги (`libbook`), авторы/переводчики в одной таблице (`libavtorname`), серии (`libseqname`), жанры (`libgenrelist` — 298 записей), M:N-связи (`libavtor`, `libtranslator`, `libseq`, `libgenre`), аннотации (`libbannotations`/`libaannotations`).
+  - книги (`libbook`), авторы/переводчики в одной таблице (`libavtorname`), серии (`libseqname`), жанры (`libgenrelist` — 272 жанра), M:N-связи (`libavtor`, `libtranslator`, `libseq`, `libgenre`), аннотации (`libbannotations`/`libaannotations`).
 - Seed-файлы:
-  - `sql/lib.libgenrelist.sql` — 298 жанров.
+  - `sql/lib.libgenrelist.sql` — 272 жанра (соответствует уникальным GenreCode в дампе; AUTO_INCREMENT=298 в исходном MariaDB — это next-id, а не row count).
   - `sql/lib.libgenretranslate.sql` — маппинг устаревших кодов (опционально).
 
 ## Files/Areas
@@ -34,7 +34,7 @@ Liquibase XML — выбранный пользователем инструме
 - `backend/src/main/resources/db/changelog/changes/003-users-auth.xml` — `users`, `roles`, `user_roles`.
 - `backend/src/main/resources/db/changelog/changes/004-book-lists.xml` — `book_lists`, `book_list_items`, `book_list_shares` (с уникальным share_token).
 - `backend/src/main/resources/db/changelog/changes/005-jobs.xml` — `import_jobs`, `conversion_jobs` со статусами.
-- `backend/src/main/resources/db/changelog/changes/006-seed-genres.xml` — seed жанров (changeset вставляет ~298 записей через `<loadData>` или `<sql>`).
+- `backend/src/main/resources/db/changelog/changes/006-seed-genres.xml` — seed жанров (changeset вставляет ~272 записи через `<loadData>` или `<sql>`).
 - `backend/src/main/resources/db/changelog/seed/genres.csv` — выгрузка жанров из `lib.libgenrelist.sql` в CSV (для `<loadData>`).
 
 ## Constraints / Non-Goals
@@ -71,7 +71,7 @@ Liquibase XML — выбранный пользователем инструме
 3. Реализовать changeset 002 для FTS:
    - добавить `fts_tsv tsvector` в `books` и `persons`;
    - GIN-индексы (`books_fts_idx`, `persons_fts_idx`);
-   - функция `books_fts_update()` + триггер: tsvector рассчитывается как `setweight(to_tsvector('russian', title), 'A') || setweight(to_tsvector('russian', coalesce(keywords,'')), 'B')`. Для книги нужно учесть авторов через дополнительную функцию (либо обновлять при изменении `book_authors`).
+   - функция `books_fts_update()` + триггер: tsvector рассчитывается с весами **A (title), B (authors), C (keywords)**: `setweight(to_tsvector('russian', title), 'A') || setweight(to_tsvector('russian', authors_concat), 'B') || setweight(to_tsvector('russian', coalesce(keywords,'')), 'C')`. Авторы учитываются через дополнительный триггер на `book_authors`, пересчитывающий `books.fts_tsv` при INSERT/UPDATE/DELETE.
    - функция `persons_fts_update()` + триггер для конкатенации фамилии/имени/отчества.
 4. Реализовать changeset 003 (users + roles + связь).
 5. Реализовать changeset 004 (lists + share tokens).
@@ -81,12 +81,12 @@ Liquibase XML — выбранный пользователем инструме
 
 ## Expected Output
 - Liquibase успешно накатывает все changeset-ы на чистый PG ≥ 16 (проверка либо локально, либо через testcontainers в Task 03/04).
-- В `genres` появляется 298 строк после применения seed-changeset.
+- В `genres` появляется ~272 строки после применения seed-changeset.
 - `EXPLAIN ANALYZE` на запросе `SELECT * FROM books WHERE fts_tsv @@ plainto_tsquery('russian', 'эхо')` использует `books_fts_idx`.
 
 ## Acceptance Criteria
 - [ ] Master changelog подключает 6 changeset-файлов по порядку.
-- [ ] После применения миграций в `genres` ровно 298 строк (соответствует количеству в `sql/lib.libgenrelist.sql`).
+- [ ] После применения миграций в `genres` соответствует количеству уникальных GenreCode в `sql/lib.libgenrelist.sql` (~272 на момент Task 02).
 - [ ] GIN-индексы созданы на `books.fts_tsv` и `persons.fts_tsv`, триггеры обновляют tsvector при INSERT/UPDATE.
 - [ ] Все changeset-ы имеют `id` и `author`; rollback указан где разумно.
 - [ ] Имена столбцов/таблиц — snake_case; PG-native типы (BIGSERIAL/BOOLEAN/`timestamp with time zone`).
