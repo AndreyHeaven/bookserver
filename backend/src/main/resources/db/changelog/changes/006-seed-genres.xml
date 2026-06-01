@@ -16,8 +16,6 @@
     <changeSet id="006-001-seed-genres" author="bookserver">
         <loadData file="db/changelog/seed/genres.csv"
                   tableName="genres"
-                  separator=","
-                  quotchar="&quot;"
                   encoding="UTF-8"
                   usePreparedStatements="true">
             <column header="code" name="code" type="STRING"/>

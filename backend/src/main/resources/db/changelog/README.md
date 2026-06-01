@@ -156,3 +156,58 @@ The `books` table carries three columns dedicated to inpx-style imports:
 - The PostgreSQL `russian` config (used by FTS) ships with stock PG — no
   external dictionary downloads are required, but if you want better stemming
   consider attaching `unaccent` / `pg_trgm` later in a separate changeset.
+
+## Known Limitations & Operational Notes
+
+### FTS propagation
+
+- **Person rename:** trigger `trg_persons_fts` обновляет только `persons.fts_tsv`, но НЕ пересчитывает `books.fts_tsv` для книг, ссылающихся на этого автора. После переименования автора (например, объединения дубликатов в Task 06) приложение обязано явно выполнить пересчёт:
+  ```sql
+  UPDATE books SET fts_tsv = books_fts_compute(
+      title,
+      keywords,
+      (SELECT string_agg(coalesce(p.last_name,'') || ' ' || coalesce(p.first_name,'') || ' ' || coalesce(p.middle_name,''), ' ')
+       FROM book_authors ba JOIN persons p ON p.id = ba.person_id
+       WHERE ba.book_id = books.id)
+  )
+  WHERE id IN (SELECT book_id FROM book_authors WHERE person_id = :renamedPersonId);
+  ```
+- **Bulk-import write amplification:** `trg_book_authors_fts` срабатывает FOR EACH ROW. Для книги с N авторами bulk INSERT выполняет N UPDATE на `books` + N обновлений GIN-индекса. Рекомендации для Task 06:
+  - Использовать `SET session_replication_role = 'replica'` для отключения триггеров на время bulk-insert;
+  - После загрузки явно пересчитать `books.fts_tsv` одним UPDATE-запросом по затронутым `book_id`-ам;
+  - В будущем (отдельный follow-up) можно переписать триггер на STATEMENT-level с `REFERENCING NEW TABLE`.
+- **TRUNCATE:** PostgreSQL row-level триггеры не срабатывают на `TRUNCATE`. Для test cleanup использовать:
+  ```sql
+  TRUNCATE TABLE book_authors, book_translators, book_genres, book_series_members,
+                 annotations, book_files, book_list_items, book_list_shares,
+                 book_lists, conversion_jobs, import_jobs, books,
+                 persons, series, user_roles, users, roles, genres
+  RESTART IDENTITY CASCADE;
+  ```
+  Частичный TRUNCATE (например, только `book_authors`) оставит `books.fts_tsv` stale — выполнить recompute UPDATE вручную.
+
+### Join-table immutability
+
+- PK таблиц `book_authors`, `book_translators` (`book_id, person_id`) считаются неизменяемыми. Для пере-ассоциации использовать DELETE+INSERT, а не UPDATE этих колонок. Текущий триггер `trg_book_authors_fts` корректно обрабатывает INSERT/UPDATE/DELETE для пересчёта tsvector, но при UPDATE book_id оставит stale tsvector у OLD.book_id (поскольку OLD/NEW принадлежат разным книгам).
+
+### Deduplication
+
+- `books.md5` — обычный b-tree index, **без UNIQUE constraint**. Дедупликация при импорте (Task 06) — обязанность сервиса: `SELECT ... FOR UPDATE` по md5 + upsert логика. Если в будущем потребуется database-level guarantee, добавить partial unique index:
+  ```sql
+  CREATE UNIQUE INDEX books_md5_unique_active ON books(md5)
+  WHERE md5 IS NOT NULL AND deleted = false;
+  ```
+  Это решение отложено, поскольку реальный inpx содержит дубликаты с одинаковым md5 (исторические артефакты Flibusta).
+
+### JPA mapping (для Task 04)
+
+- `books.year` и `book_list_items.position`, `book_authors.position`, `book_translators.position` — semi-reserved в Hibernate. В JPA-сущностях обязательно указывать `@Column(name = "year")`/`@Column(name = "position")` чтобы избежать диалект-зависимого квотирования.
+- `books.fts_tsv` и `persons.fts_tsv` — `tsvector`-колонки, управляемые триггерами. В JPA пометить как `@Column(insertable = false, updatable = false, columnDefinition = "tsvector")` либо `@Transient`. `ddl-auto=validate` должен пройти.
+
+### Tooling
+
+- `scripts/parse_genres.py` — скрипт для генерации `seed/genres.csv` из `sql/lib.libgenrelist.sql`. См. `scripts/README.md`.
+
+### IDE warnings
+
+- IntelliJ может выдавать `Cannot resolve directory 'db'` для `<include file="db/changelog/changes/*.xml">` в master changelog и `<loadData file="db/changelog/seed/genres.csv">` в seed changeset. Это false-positive — Liquibase runtime разрешает classpath-relative пути корректно. Игнорировать (либо подавить через `// noinspection XmlPathReference` где это уместно).
