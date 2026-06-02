@@ -5,6 +5,7 @@ import com.example.bookserver.auth.dto.MeResponse;
 import com.example.bookserver.auth.dto.RefreshRequest;
 import com.example.bookserver.auth.dto.RegisterRequest;
 import com.example.bookserver.auth.dto.TokenResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +42,7 @@ public class AuthController {
     }
 
     @GetMapping("/me")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<MeResponse> me() {
         return ResponseEntity.ok(authService.me());
     }

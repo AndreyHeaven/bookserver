@@ -3,6 +3,7 @@ package com.example.bookserver.config;
 import com.example.bookserver.security.JwtAuthenticationFilter;
 import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -24,6 +25,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +35,9 @@ import java.util.Map;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    @Value("${app.cors.allowed-origins:}")
+    private String allowedOriginsCsv;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
@@ -75,15 +81,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration conf = new CorsConfiguration();
-        conf.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "http://localhost",
-                "http://localhost:3000"
-        ));
+        List<String> origins = Arrays.stream(allowedOriginsCsv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .toList();
+        conf.setAllowedOrigins(origins);
         conf.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         conf.setAllowedHeaders(List.of("*"));
         conf.setExposedHeaders(List.of("Authorization", "Location"));
-        conf.setAllowCredentials(true);
+        // allowCredentials intentionally disabled: JWT travels in the Authorization
+        // header (not cookies); credentials would needlessly forbid wildcard origin
+        // patterns and complicate dev-mode CORS without security benefit.
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", conf);
         return source;
@@ -120,7 +128,7 @@ public class SecurityConfig {
                                        String path,
                                        ObjectMapper objectMapper) throws java.io.IOException {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("timestamp", OffsetDateTime.now().toString());
+        body.put("timestamp", OffsetDateTime.now(ZoneOffset.UTC).toString());
         body.put("status", status);
         body.put("error", error);
         body.put("message", message);

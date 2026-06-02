@@ -11,9 +11,13 @@ app:
       # DEV ONLY — replace via JWT_SECRET env in prod.
       # Secret must be >= 32 characters for HS256.
       secret: ${JWT_SECRET:dev-secret-CHANGE-IN-PROD-min-32-characters-long-please}
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000
 
 logging:
   level:
     root: INFO
     com.example.bookserver: DEBUG
+    # DEV ONLY. NEVER raise to TRACE and do NOT enable org.hibernate.orm.jdbc.bind=TRACE:
+    # that would log JDBC parameter values (including password_hash and other PII) to stdout.
     org.hibernate.SQL: DEBUG

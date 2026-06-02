@@ -211,3 +211,10 @@ The `books` table carries three columns dedicated to inpx-style imports:
 ### IDE warnings
 
 - IntelliJ может выдавать `Cannot resolve directory 'db'` для `<include file="db/changelog/changes/*.xml">` в master changelog и `<loadData file="db/changelog/seed/genres.csv">` в seed changeset. Это false-positive — Liquibase runtime разрешает classpath-relative пути корректно. Игнорировать (либо подавить через `// noinspection XmlPathReference` где это уместно).
+
+### Auth & JWT (Task 03 follow-ups)
+
+- **Refresh-token replay**: при rotation старый refresh-token остаётся валидным до exp. Нет jti+blacklist. Follow-up: добавить таблицу `refresh_tokens` и jti-claim в Task 09 production-readiness.
+- **Disabled-user grace period**: исправлено в Task 03 fix-wave (`JwtAuthenticationFilter` + `AuthService.refresh` теперь вызывают `AccountStatusUserDetailsChecker`). Соответственно `enabled=false` отвергается немедленно для login/refresh и для следующего запроса с access-token; текущий access-token истечёт сам через TTL.
+- **CORS**: origins вынесены в `app.cors.allowed-origins`. Dev-default: `http://localhost:5173,http://localhost:3000`. Prod-задание обязательно через env `APP_CORS_ALLOWED_ORIGINS`. `allowCredentials` отключён (не требуется для JWT в Authorization header).
+- **OpenAPI security**: глобальный `bearerAuth`-requirement убран. Защищённые endpoints обязаны помечаться `@SecurityRequirement(name="bearerAuth")` на классе или методе. Это нужно учесть при добавлении контроллеров в Task 04+/05.

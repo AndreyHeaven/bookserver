@@ -5,6 +5,7 @@ import com.example.bookserver.auth.dto.LoginRequest;
 import com.example.bookserver.auth.dto.RefreshRequest;
 import com.example.bookserver.auth.dto.RegisterRequest;
 import com.example.bookserver.auth.dto.TokenResponse;
+import com.example.bookserver.domain.UserEntity;
 import com.example.bookserver.repo.UserRepository;
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -141,6 +142,34 @@ class AuthControllerIT extends AbstractIntegrationTest {
     void actuator_health_is_public() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void register_duplicate_username_returns_409() throws Exception {
+        // First register succeeds.
+        registerUser("dup1", "a@example.com", "password1");
+
+        // Second register with the same username (different email) must hit the unique
+        // constraint on users.username and be translated by GlobalExceptionHandler to 409.
+        RegisterRequest duplicate = new RegisterRequest("dup1", "b@example.com", "password1");
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(duplicate)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void login_with_disabled_user_returns_401() throws Exception {
+        registerUser("disabled1", "disabled1@example.com", "password1");
+
+        UserEntity user = userRepository.findByUsername("disabled1").orElseThrow();
+        user.setEnabled(false);
+        userRepository.save(user);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new LoginRequest("disabled1", "password1"))))
+                .andExpect(status().isUnauthorized());
     }
 
     private void registerUser(String username, String email, String password) throws Exception {

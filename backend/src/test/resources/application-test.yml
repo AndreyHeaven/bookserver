@@ -11,6 +11,8 @@ app:
       secret: test-secret-min-32-characters-long-for-jwt-signing-tests
       access-token-ttl: 1h
       refresh-token-ttl: 7d
+  cors:
+    allowed-origins: http://localhost:5173
   public:
     base-url: http://localhost:8080
   storage:

@@ -72,8 +72,22 @@
     **Follow-up в Task 03**: заменить кастомный `HealthController` на `spring-boot-starter-actuator` (B-F9), добавить `pluginManagement` / `dependencyResolutionManagement` (A-F2), профили `application-{dev,prod,test}.yml` (B-F7).
 
     **Follow-up в Task 10**: полный README с требованиями JDK 25 (B-F10), `vendor` в toolchain (A-F4), Docker-related настройки.
-- [ ] `task-02-postgres-schema-liquibase-seed.md`: PostgreSQL schema + Liquibase XML + seed — Suggested agent: Code — Covers: R2, R3, S1
-- [ ] `task-03-backend-core-security-openapi.md`: Backend core (Spring Boot 4, Security, JWT, OpenAPI) — Suggested agent: Code — Covers: R1, R2, S2
+- [x] `task-02-postgres-schema-liquibase-seed.md`: PostgreSQL schema + Liquibase XML + seed — Suggested agent: Code — Covers: R2, R3, S1 — ✅ done (commits: `b2fae98` initial, `6db845d` fix tighten, `f8dd1f4` chore tools, `b5b271f` docs align); 6 changesets, 272 genres seeded; fix-wave закрыл 5 TP-now (NOT NULL constraints, redundant attrs, spec alignment) и задокументировал 6 TP-deferred (FTS propagation, bulk-import write amplification, TRUNCATE, dedup) в README.
+
+    **Схема будет фактически применена в Task 03** (при подключении Liquibase + Spring Boot, testcontainers PG); Task 04 проверит маппинг через `ddl-auto=validate`.
+
+    **Follow-up в Task 06** (importers): реализовать persons-rename FTS recompute pass; использовать `SET session_replication_role='replica'` для bulk-import и явный пересчёт `books.fts_tsv`; дедуп по md5 через `SELECT FOR UPDATE` + upsert.
+- [x] `task-03-backend-core-security-openapi.md`: Backend core (Spring Boot 4, Security, JWT, OpenAPI) — Suggested agent: Code — Covers: R1, R2, S2 — ✅ done (commits: `d83513b` initial, `43008a3` fix-wave); 9 IT тестов + 2 новых (duplicate-register-409, disabled-user-401) зелёные; fix-wave закрыл 8 TP-now (F1/F2/F4/F5/F8/F13/F16-partial + CORS credentials) и задокументировал 9 TP-deferred.
+
+    **Follow-up в Task 04**: TRUNCATE-cleanup helper в `AbstractIntegrationTest` (F7); тесты на refresh с blank token + me с удалённым user (F16-rest).
+
+    **Follow-up в Task 05**: измерить latency UserDetails per-request, при необходимости — Caffeine кэш (F11); решить судьбу `roles` claim (F14).
+
+    **Follow-up в Task 09**: `@Tag`/`@Operation` аннотации на AuthController + других контроллерах (F10); error-code `refresh_expired` для UX session-expiry (F18).
+
+    **Follow-up в Task 10**: убрать дефолт JWT_SECRET в base application.yml (F9); поднять логирование invalid tokens до WARN (F12).
+
+    **Follow-up в backlog (security hardening)**: refresh-token replay protection через jti + `refresh_tokens` таблицу (F3).
 - [ ] `task-04-jpa-entities-repositories.md`: JPA entities + repositories — Suggested agent: Code — Covers: R2, R3
 - [ ] `task-05-books-rest-api-fts.md`: Books / Authors / Genres REST API + full-text search — Suggested agent: Code — Covers: R3, R9, S5, S8, S9
 - [ ] `task-06-importers-inpx-fb2.md`: Importers (Inpx+ZIP, fb2) — Suggested agent: Code — Covers: R4, S3, S4

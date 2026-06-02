@@ -13,6 +13,9 @@ import com.example.bookserver.security.CustomUserDetailsService;
 import com.example.bookserver.security.JwtService;
 import com.example.bookserver.security.UserPrincipal;
 import io.jsonwebtoken.Claims;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.authentication.AccountStatusException;
+import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,6 +23,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,12 +57,14 @@ public class AuthService {
 
     @Transactional
     public MeResponse register(RegisterRequest request) {
+        // Pre-checks raise DataIntegrityViolationException (HTTP 409 via GlobalExceptionHandler),
+        // consistent with the race-condition path where the DB unique constraint fires directly.
         if (userRepository.existsByUsername(request.username())) {
-            throw new IllegalArgumentException("Username already taken: " + request.username());
+            throw new DataIntegrityViolationException("Username already taken");
         }
         String email = (request.email() == null || request.email().isBlank()) ? null : request.email();
         if (email != null && userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("Email already in use: " + email);
+            throw new DataIntegrityViolationException("Email already in use");
         }
 
         RoleEntity userRole = roleRepository.findByName(DEFAULT_ROLE)
@@ -97,7 +103,13 @@ public class AuthService {
             throw new BadCredentialsException("Token is not a refresh token");
         }
         String username = claims.getSubject();
-        UserPrincipal principal = (UserPrincipal) userDetailsService.loadUserByUsername(username);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        try {
+            new AccountStatusUserDetailsChecker().check(userDetails);
+        } catch (AccountStatusException ex) {
+            throw new BadCredentialsException("Invalid or expired refresh token", ex);
+        }
+        UserPrincipal principal = (UserPrincipal) userDetails;
         return TokenResponse.bearer(
                 jwtService.generateAccessToken(principal),
                 jwtService.generateRefreshToken(principal));

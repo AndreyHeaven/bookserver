@@ -3,11 +3,18 @@ package com.example.bookserver.config;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * OpenAPI / Swagger configuration. The {@code bearerAuth} scheme is declared
+ * globally but NOT registered as a global security requirement: public
+ * endpoints (e.g. {@code /api/auth/login}, {@code /api/auth/register},
+ * {@code /api/auth/refresh}, {@code /actuator/health}) must remain unmarked.
+ * Protected endpoints opt in explicitly via
+ * {@code @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")}.
+ */
 @Configuration
 public class OpenApiConfig {
 
@@ -24,7 +31,6 @@ public class OpenApiConfig {
                         new SecurityScheme()
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
-                                .bearerFormat("JWT")))
-                .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME));
+                                .bearerFormat("JWT")));
     }
 }
