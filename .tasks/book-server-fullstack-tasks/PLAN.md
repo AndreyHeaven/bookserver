@@ -77,7 +77,7 @@
     **Схема будет фактически применена в Task 03** (при подключении Liquibase + Spring Boot, testcontainers PG); Task 04 проверит маппинг через `ddl-auto=validate`.
 
     **Follow-up в Task 06** (importers): реализовать persons-rename FTS recompute pass; использовать `SET session_replication_role='replica'` для bulk-import и явный пересчёт `books.fts_tsv`; дедуп по md5 через `SELECT FOR UPDATE` + upsert.
-- [x] `task-03-backend-core-security-openapi.md`: Backend core (Spring Boot 4, Security, JWT, OpenAPI) — Suggested agent: Code — Covers: R1, R2, S2 — ✅ done (commits: `d83513b` initial, `43008a3` fix-wave); 9 IT тестов + 2 новых (duplicate-register-409, disabled-user-401) зелёные; fix-wave закрыл 8 TP-now (F1/F2/F4/F5/F8/F13/F16-partial + CORS credentials) и задокументировал 9 TP-deferred.
+- [x] `task-03-backend-core-security-openapi.md`: Backend core (Spring Boot 4, Security, JWT, OpenAPI) — Suggested agent: Code — Covers: R1, R2, S2 — ✅ done (commits: `d83513b` initial, `20f39c5` fix-wave); 9 IT тестов + 2 новых (duplicate-register-409, disabled-user-401) зелёные; fix-wave закрыл 8 TP-now (F1/F2/F4/F5/F8/F13/F16-partial + CORS credentials) и задокументировал 9 TP-deferred.
 
     **Follow-up в Task 04**: TRUNCATE-cleanup helper в `AbstractIntegrationTest` (F7); тесты на refresh с blank token + me с удалённым user (F16-rest).
 
