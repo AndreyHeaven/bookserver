@@ -47,10 +47,18 @@ public abstract class AbstractIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     /**
-     * Business tables to wipe between tests. Order is irrelevant because we
-     * issue one {@code TRUNCATE ... CASCADE RESTART IDENTITY} statement; the
-     * {@code roles} table is intentionally excluded so that the {@code ROLE_USER}
-     * / {@code ROLE_ADMIN} seed from Liquibase 003-003 survives.
+     * Business tables to truncate before each test for isolation.
+     *
+     * <p>Order is irrelevant because we issue one
+     * {@code TRUNCATE ... CASCADE RESTART IDENTITY} statement.
+     *
+     * <p>Intentionally excluded:
+     * <ul>
+     *   <li>{@code roles} — Liquibase seed of {@code ROLE_USER} / {@code ROLE_ADMIN}
+     *       required by {@code AuthService.register()}.</li>
+     *   <li>{@code genres} — Liquibase seed of 272 genres (changeset 006-001).</li>
+     *   <li>{@code databasechangelog}, {@code databasechangeloglock} — managed by Liquibase itself.</li>
+     * </ul>
      */
     private static final String[] TABLES_TO_TRUNCATE = {
             "annotations",

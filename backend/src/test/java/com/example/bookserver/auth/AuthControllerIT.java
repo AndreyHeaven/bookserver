@@ -8,7 +8,6 @@ import com.example.bookserver.auth.dto.TokenResponse;
 import com.example.bookserver.domain.UserEntity;
 import com.example.bookserver.repo.UserRepository;
 import tools.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -33,11 +32,6 @@ class AuthControllerIT extends AbstractIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
-
-    @BeforeEach
-    void cleanUsers() {
-        userRepository.deleteAll();
-    }
 
     @Test
     void register_returns_201_and_persists_user() throws Exception {

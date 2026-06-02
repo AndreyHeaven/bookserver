@@ -181,10 +181,16 @@ The `books` table carries three columns dedicated to inpx-style imports:
   TRUNCATE TABLE book_authors, book_translators, book_genres, book_series_members,
                  annotations, book_files, book_list_items, book_list_shares,
                  book_lists, conversion_jobs, import_jobs, books,
-                 persons, series, user_roles, users, roles, genres
+                 persons, series, user_roles, users
   RESTART IDENTITY CASCADE;
   ```
   Частичный TRUNCATE (например, только `book_authors`) оставит `books.fts_tsv` stale — выполнить recompute UPDATE вручную.
+
+  **Test cleanup helper:** реализован в `AbstractIntegrationTest.truncateAll()`
+  (Task 04). Использует `JdbcTemplate.execute("TRUNCATE TABLE ... RESTART IDENTITY CASCADE")`.
+  Список таблиц — константа `TABLES_TO_TRUNCATE`. Из truncate-набора исключены `roles`
+  и `genres` (seeded из Liquibase) и Liquibase metadata-таблицы (`databasechangelog`,
+  `databasechangeloglock`).
 
 ### Join-table immutability
 

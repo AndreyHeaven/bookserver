@@ -6,6 +6,7 @@ import jakarta.persistence.Query;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -19,11 +20,12 @@ import java.util.Map;
  * <pre>
  *   SELECT id, title, year, lang, file_type,
  *          ts_rank_cd(b.fts_tsv, plainto_tsquery('russian', :q)) AS rank
- *     FROM books b [JOIN book_genres bg ON bg.book_id = b.id]
- *    WHERE b.fts_tsv @@ plainto_tsquery('russian', :q)
+ *     FROM books b
+ *    WHERE b.deleted = false
+ *      AND b.fts_tsv @@ plainto_tsquery('russian', :q)
  *      [AND b.lang = :lang]
  *      [AND b.year = :year]
- *      [AND bg.genre_id IN (:genreIds)]
+ *      [AND EXISTS (SELECT 1 FROM book_genres bg WHERE bg.book_id = b.id AND bg.genre_id IN (:genreIds))]
  *    ORDER BY rank DESC
  *    LIMIT :limit OFFSET :offset
  * </pre>
@@ -36,6 +38,7 @@ import java.util.Map;
  * {@link BookSearchProjection} / typed maps to avoid coupling to a Hibernate
  * {@code ResultTransformer}.
  */
+@Transactional(readOnly = true)
 public class BookSearchRepositoryImpl implements BookSearchRepository {
 
     @PersistenceContext
@@ -44,14 +47,13 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
     @Override
     public Page<BookSearchProjection> search(String query, FacetFilter filter, Pageable pageable) {
         boolean hasQuery = query != null && !query.isBlank();
-        boolean needsGenreJoin = filter != null && filter.genreIds() != null && !filter.genreIds().isEmpty();
+        boolean needsGenreFilter = filter != null
+                && filter.genreIds() != null
+                && !filter.genreIds().isEmpty();
 
         Map<String, Object> params = new HashMap<>();
-        StringBuilder from = new StringBuilder("FROM books b ");
-        if (needsGenreJoin) {
-            from.append("JOIN book_genres bg ON bg.book_id = b.id ");
-        }
-        StringBuilder where = new StringBuilder(" WHERE 1=1 ");
+        String from = "FROM books b ";
+        StringBuilder where = new StringBuilder(" WHERE b.deleted = false ");
         if (hasQuery) {
             where.append(" AND b.fts_tsv @@ plainto_tsquery('russian', :q) ");
             params.put("q", query);
@@ -65,15 +67,16 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
                 where.append(" AND b.year = :year ");
                 params.put("year", filter.year());
             }
-            if (needsGenreJoin) {
-                where.append(" AND bg.genre_id IN (:genreIds) ");
+            if (needsGenreFilter) {
+                where.append(" AND EXISTS (SELECT 1 FROM book_genres bg "
+                        + "WHERE bg.book_id = b.id AND bg.genre_id IN (:genreIds)) ");
                 params.put("genreIds", filter.genreIds());
             }
         }
 
         String rankExpr = hasQuery
                 ? "ts_rank_cd(b.fts_tsv, plainto_tsquery('russian', :q))"
-                : "0.0";
+                : "NULL::real";
         String orderBy = hasQuery ? " ORDER BY rank DESC, b.id ASC " : " ORDER BY b.title ASC, b.id ASC ";
 
         String sql = "SELECT b.id, b.title, b.year, b.lang, b.file_type, " + rankExpr + " AS rank "
@@ -120,15 +123,12 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
     private Map<String, Long> aggregate(String groupBy, String query, FacetFilter filter,
                                         boolean skipLang, boolean skipYear, boolean skipGenre) {
         boolean hasQuery = query != null && !query.isBlank();
-        boolean needsGenreJoin = !skipGenre
+        boolean needsGenreFilter = !skipGenre
                 && filter.genreIds() != null && !filter.genreIds().isEmpty();
 
         Map<String, Object> params = new HashMap<>();
-        StringBuilder from = new StringBuilder("FROM books b ");
-        if (needsGenreJoin) {
-            from.append("JOIN book_genres bg ON bg.book_id = b.id ");
-        }
-        StringBuilder where = new StringBuilder(" WHERE 1=1 ");
+        String from = "FROM books b ";
+        StringBuilder where = new StringBuilder(" WHERE b.deleted = false ");
         if (hasQuery) {
             where.append(" AND b.fts_tsv @@ plainto_tsquery('russian', :q) ");
             params.put("q", query);
@@ -141,8 +141,9 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
             where.append(" AND b.year = :year ");
             params.put("year", filter.year());
         }
-        if (needsGenreJoin) {
-            where.append(" AND bg.genre_id IN (:genreIds) ");
+        if (needsGenreFilter) {
+            where.append(" AND EXISTS (SELECT 1 FROM book_genres bg "
+                    + "WHERE bg.book_id = b.id AND bg.genre_id IN (:genreIds)) ");
             params.put("genreIds", filter.genreIds());
         }
 
@@ -163,7 +164,7 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
     private Map<Long, Long> aggregateGenres(String query, FacetFilter filter) {
         boolean hasQuery = query != null && !query.isBlank();
         Map<String, Object> params = new HashMap<>();
-        StringBuilder where = new StringBuilder(" WHERE 1=1 ");
+        StringBuilder where = new StringBuilder(" WHERE b.deleted = false ");
         if (hasQuery) {
             where.append(" AND b.fts_tsv @@ plainto_tsquery('russian', :q) ");
             params.put("q", query);
