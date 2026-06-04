@@ -67,6 +67,19 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
                 where.append(" AND b.year = :year ");
                 params.put("year", filter.year());
             }
+            if (filter.yearFrom() != null) {
+                where.append(" AND b.year >= :yearFrom ");
+                params.put("yearFrom", filter.yearFrom());
+            }
+            if (filter.yearTo() != null) {
+                where.append(" AND b.year <= :yearTo ");
+                params.put("yearTo", filter.yearTo());
+            }
+            if (filter.authorId() != null) {
+                where.append(" AND EXISTS (SELECT 1 FROM book_authors ba "
+                        + "WHERE ba.book_id = b.id AND ba.person_id = :authorId) ");
+                params.put("authorId", filter.authorId());
+            }
             if (needsGenreFilter) {
                 where.append(" AND EXISTS (SELECT 1 FROM book_genres bg "
                         + "WHERE bg.book_id = b.id AND bg.genre_id IN (:genreIds)) ");
@@ -77,7 +90,7 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
         String rankExpr = hasQuery
                 ? "ts_rank_cd(b.fts_tsv, plainto_tsquery('russian', :q))"
                 : "NULL::real";
-        String orderBy = hasQuery ? " ORDER BY rank DESC, b.id ASC " : " ORDER BY b.title ASC, b.id ASC ";
+        String orderBy = orderBy(hasQuery, pageable);
 
         String sql = "SELECT b.id, b.title, b.year, b.lang, b.file_type, " + rankExpr + " AS rank "
                 + from + where + orderBy + " LIMIT :limit OFFSET :offset";
@@ -141,6 +154,19 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
             where.append(" AND b.year = :year ");
             params.put("year", filter.year());
         }
+        if (!skipYear && filter.yearFrom() != null) {
+            where.append(" AND b.year >= :yearFrom ");
+            params.put("yearFrom", filter.yearFrom());
+        }
+        if (!skipYear && filter.yearTo() != null) {
+            where.append(" AND b.year <= :yearTo ");
+            params.put("yearTo", filter.yearTo());
+        }
+        if (filter.authorId() != null) {
+            where.append(" AND EXISTS (SELECT 1 FROM book_authors ba "
+                    + "WHERE ba.book_id = b.id AND ba.person_id = :authorId) ");
+            params.put("authorId", filter.authorId());
+        }
         if (needsGenreFilter) {
             where.append(" AND EXISTS (SELECT 1 FROM book_genres bg "
                     + "WHERE bg.book_id = b.id AND bg.genre_id IN (:genreIds)) ");
@@ -177,6 +203,19 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
             where.append(" AND b.year = :year ");
             params.put("year", filter.year());
         }
+        if (filter.yearFrom() != null) {
+            where.append(" AND b.year >= :yearFrom ");
+            params.put("yearFrom", filter.yearFrom());
+        }
+        if (filter.yearTo() != null) {
+            where.append(" AND b.year <= :yearTo ");
+            params.put("yearTo", filter.yearTo());
+        }
+        if (filter.authorId() != null) {
+            where.append(" AND EXISTS (SELECT 1 FROM book_authors ba "
+                    + "WHERE ba.book_id = b.id AND ba.person_id = :authorId) ");
+            params.put("authorId", filter.authorId());
+        }
         String sql = "SELECT bg.genre_id, COUNT(DISTINCT b.id) "
                 + " FROM books b JOIN book_genres bg ON bg.book_id = b.id "
                 + where + " GROUP BY bg.genre_id ORDER BY 2 DESC";
@@ -201,5 +240,34 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
 
     private static Double toDouble(Object o) {
         return o == null ? null : ((Number) o).doubleValue();
+    }
+
+    private static String orderBy(boolean hasQuery, Pageable pageable) {
+        if (pageable.getSort().isUnsorted()) {
+            return hasQuery ? " ORDER BY rank DESC, b.id ASC " : " ORDER BY b.title ASC, b.id ASC ";
+        }
+        List<String> clauses = pageable.getSort().stream()
+                .map(order -> switch (order.getProperty()) {
+                    case "title" -> "b.title " + direction(order);
+                    case "year" -> "b.year " + direction(order) + " NULLS LAST";
+                    case "lang" -> "b.lang " + direction(order) + " NULLS LAST";
+                    case "id" -> "b.id " + direction(order);
+                    case "series" -> "COALESCE((SELECT min(s.title) FROM book_series_members bsm "
+                            + "JOIN series s ON s.id = bsm.series_id WHERE bsm.book_id = b.id), '') "
+                            + direction(order);
+                    case "sequenceNumber" -> "COALESCE((SELECT min(bsm.sequence_number) FROM book_series_members bsm "
+                            + "WHERE bsm.book_id = b.id), 2147483647) " + direction(order);
+                    default -> null;
+                })
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (clauses.isEmpty()) {
+            return hasQuery ? " ORDER BY rank DESC, b.id ASC " : " ORDER BY b.title ASC, b.id ASC ";
+        }
+        return " ORDER BY " + String.join(", ", clauses) + ", b.id ASC ";
+    }
+
+    private static String direction(org.springframework.data.domain.Sort.Order order) {
+        return order.isDescending() ? "DESC" : "ASC";
     }
 }

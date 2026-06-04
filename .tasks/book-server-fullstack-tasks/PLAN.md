@@ -95,7 +95,7 @@
     **Follow-up в Task 06**: `findFirstByMd5IsNull` / explicit null-check в importers (B-F9).
 
     **Follow-up в cleanup-task / Task 09**: records для `@EmbeddedId`-классов (B-F13).
-- [ ] `task-05-books-rest-api-fts.md`: Books / Authors / Genres REST API + full-text search — Suggested agent: Code — Covers: R3, R9, S5, S8, S9
+- [x] `task-05-books-rest-api-fts.md`: Books / Authors / Genres REST API + full-text search — Suggested agent: Code — Covers: R3, R9, S5, S8, S9 — ✅ done; Books/Auth/Genres read-only API, recursive genre filters/tree counts, author FTS, facets, OpenAPI annotations; 23 backend tests green (`./gradlew :backend:test`).
 - [ ] `task-06-importers-inpx-fb2.md`: Importers (Inpx+ZIP, fb2) — Suggested agent: Code — Covers: R4, S3, S4
 - [ ] `task-07-conversion-architecture.md`: Conversion architecture (без реализации) — Suggested agent: Code — Covers: R5, S6
 - [ ] `task-08-book-lists-public-share-qr.md`: Book lists + public share + QR — Suggested agent: Code — Covers: R6, S7

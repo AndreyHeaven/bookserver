@@ -8,8 +8,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -24,16 +22,18 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SpringBootTest
 @ActiveProfiles("test")
-@Testcontainers
 public abstract class AbstractIntegrationTest {
 
-    @Container
     @SuppressWarnings("resource") // container lifecycle managed by Testcontainers
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(
             DockerImageName.parse("postgres:16-alpine"))
             .withDatabaseName("bookserver")
             .withUsername("bookserver")
             .withPassword("bookserver");
+
+    static {
+        POSTGRES.start();
+    }
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
