@@ -88,7 +88,13 @@
     **Follow-up в Task 10**: убрать дефолт JWT_SECRET в base application.yml (F9); поднять логирование invalid tokens до WARN (F12).
 
     **Follow-up в backlog (security hardening)**: refresh-token replay protection через jti + `refresh_tokens` таблицу (F3).
-- [ ] `task-04-jpa-entities-repositories.md`: JPA entities + repositories — Suggested agent: Code — Covers: R2, R3
+- [x] `task-04-jpa-entities-repositories.md`: JPA entities + repositories — Suggested agent: Code — Covers: R2, R3 — ✅ done (commits: `24ed8c3` initial, `574579f` fix-wave); 17 IT тестов зелёные (11 AuthControllerIT + 6 BookRepositoryIT); fix-wave закрыл 9 TP-now (BookSearch multi-genre EXISTS, soft-delete фильтр, rank=NULL для blank-query, @Transactional(readOnly), Pageable.sort javadoc, page-size cap, +5 тестов, AuthControllerIT.cleanUsers удалён, TRUNCATE-docs).
+
+    **Follow-up в Task 05** (TP-deferred): bytecode-enhance для LAZY `Book.annotation` (A-F3); `Set→List` + `@OrderBy(position ASC)` для `authors`/`translators`/`seriesMembers` (A-F6); aggregate helper refactor — `Integer→String→Integer` round-trip + `groupBy` enum (A-F7/A-F8); whitelist sort на REST-уровне (A-F2 явно отложен); logging в BookSearchRepositoryImpl (B-F8); Caffeine TTL-кэш для facetCounts (B-F11); dynamic truncate discovery в `AbstractIntegrationTest` (B-F5).
+
+    **Follow-up в Task 06**: `findFirstByMd5IsNull` / explicit null-check в importers (B-F9).
+
+    **Follow-up в cleanup-task / Task 09**: records для `@EmbeddedId`-классов (B-F13).
 - [ ] `task-05-books-rest-api-fts.md`: Books / Authors / Genres REST API + full-text search — Suggested agent: Code — Covers: R3, R9, S5, S8, S9
 - [ ] `task-06-importers-inpx-fb2.md`: Importers (Inpx+ZIP, fb2) — Suggested agent: Code — Covers: R4, S3, S4
 - [ ] `task-07-conversion-architecture.md`: Conversion architecture (без реализации) — Suggested agent: Code — Covers: R5, S6
