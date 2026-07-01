@@ -1,5 +1,6 @@
 package com.example.bookserver.web;
 
+import com.example.bookserver.conversion.exception.ConverterNotFoundException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -60,6 +61,13 @@ public class GlobalExceptionHandler {
                                                      HttpServletRequest req) {
         ApiError body = build(HttpStatus.BAD_REQUEST, ex.getMessage(), req, null);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(ConverterNotFoundException.class)
+    public ResponseEntity<ApiError> handleConverterNotFound(ConverterNotFoundException ex,
+                                                            HttpServletRequest req) {
+        ApiError body = build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), req, null);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
