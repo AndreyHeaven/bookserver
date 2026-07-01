@@ -10,6 +10,10 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 /**
  * Common base for Spring Boot integration tests. Boots an ephemeral
  * PostgreSQL 16 container, wires the datasource to it, and runs all
@@ -31,6 +35,9 @@ public abstract class AbstractIntegrationTest {
             .withUsername("bookserver")
             .withPassword("bookserver");
 
+    protected static final Path TEST_IMPORTS_DIR = createTempDir("bookserver-imports-");
+    protected static final Path TEST_BOOKS_DIR = createTempDir("bookserver-books-");
+
     static {
         POSTGRES.start();
     }
@@ -41,6 +48,16 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+        registry.add("app.imports.base-dir", TEST_IMPORTS_DIR::toString);
+        registry.add("app.storage.books-dir", TEST_BOOKS_DIR::toString);
+    }
+
+    private static Path createTempDir(String prefix) {
+        try {
+            return Files.createTempDirectory(prefix).toAbsolutePath().normalize();
+        } catch (IOException e) {
+            throw new ExceptionInInitializerError(e);
+        }
     }
 
     @Autowired
