@@ -49,6 +49,11 @@ public class BookMapper {
                 files(book));
     }
 
+    /** Public accessor so other domains (e.g. book lists) can render authors consistently. */
+    public List<PersonBriefDto> authorBriefs(Book book) {
+        return authors(book);
+    }
+
     private List<PersonBriefDto> authors(Book book) {
         return book.getAuthors().stream()
                 .sorted(Comparator.comparingInt(BookAuthor::getPosition))

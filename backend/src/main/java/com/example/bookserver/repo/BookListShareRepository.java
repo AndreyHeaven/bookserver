@@ -8,4 +8,8 @@ import java.util.Optional;
 public interface BookListShareRepository extends JpaRepository<BookListShare, Long> {
 
     Optional<BookListShare> findByShareToken(String shareToken);
+
+    Optional<BookListShare> findByListId(Long listId);
+
+    void deleteByListId(Long listId);
 }
