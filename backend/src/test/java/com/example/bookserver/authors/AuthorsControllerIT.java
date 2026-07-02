@@ -60,7 +60,7 @@ class AuthorsControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(get("/api/authors/{id}/books", authorId)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.page.totalElements").value(2))
                 .andExpect(jsonPath("$.content[0].authors[0].fullName").value("Толстой Алексей Николаевич"));
     }
 

@@ -1,9 +1,13 @@
-export interface Page<T> {
-  content: T[]
+export interface PageMetadata {
+  size: number
+  number: number
   totalElements: number
   totalPages: number
-  number: number
-  size: number
+}
+
+export interface Page<T> {
+  content: T[]
+  page: PageMetadata
 }
 
 export interface ApiError {

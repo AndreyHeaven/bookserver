@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { booksApi } from '@/api/books'
 import { listsApi } from '@/api/lists'
 import ConvertBookDialog from '@/components/ConvertBookDialog.vue'
-import type { BookDetailsDto, BookListDto } from '@/types'
+import type { BookDetailsDto, BookFileDto, BookListDto } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,6 +32,19 @@ async function load(id: number) {
 function openConvert(fileId: number) {
   convertFileId.value = fileId
   convertOpen.value = true
+}
+
+async function downloadFile(f: BookFileDto) {
+  if (!book.value) return
+  const { data } = await booksApi.downloadFile(book.value.id, f.id)
+  const url = URL.createObjectURL(data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${book.value.title}.${f.format}`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
 }
 
 async function openAddToList() {
@@ -117,9 +130,8 @@ watch(() => route.params.id, (id) => load(Number(id)), { immediate: true })
             <v-btn
               icon="mdi-download"
               variant="text"
-              :href="f.downloadUrl"
-              target="_blank"
               title="Скачать"
+              @click="downloadFile(f)"
             />
             <v-btn
               icon="mdi-swap-horizontal"

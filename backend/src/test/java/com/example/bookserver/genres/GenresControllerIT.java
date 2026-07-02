@@ -65,13 +65,13 @@ class GenresControllerIT extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .param("includeSubgenres", "true"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(2));
+                .andExpect(jsonPath("$.page.totalElements").value(2));
 
         mockMvc.perform(get("/api/genres/{id}/books", f.parentGenreId())
                         .header("Authorization", "Bearer " + token)
                         .param("includeSubgenres", "false"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(1));
+                .andExpect(jsonPath("$.page.totalElements").value(1));
     }
 
     private Fixture seedGenreBooks() {

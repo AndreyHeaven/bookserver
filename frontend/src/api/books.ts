@@ -32,4 +32,7 @@ export const booksApi = {
   get(id: number) {
     return http.get<BookDetailsDto>(`/books/${id}`)
   },
+  downloadFile(bookId: number, fileId: number) {
+    return http.get<Blob>(`/books/${bookId}/files/${fileId}`, { responseType: 'blob' })
+  },
 }

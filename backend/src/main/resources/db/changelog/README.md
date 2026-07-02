@@ -19,7 +19,7 @@ db/changelog/
 │   ├── 005-jobs.xml             ← import_jobs / conversion_jobs (async pipelines)
 │   └── 006-seed-genres.xml      ← <loadData> from seed/genres.csv
 └── seed/
-    └── genres.csv               ← 272 genres extracted from sql/lib.libgenrelist.sql
+    └── genres.csv               ← 24 sections + 272 genres from sql/lib.libgenrelist.sql
 ```
 
 All changesets have unique IDs (`001-001`, `001-002`, …) and `author="bookserver"`.
@@ -114,25 +114,34 @@ genres ──┐                      persons ─┐                      series
 
 ### Genres seed (changeset 006)
 
-- `seed/genres.csv` has 272 records (header + 272 data rows = 273 lines total).
+- `seed/genres.csv` has 296 records (header + 296 data rows = 297 lines total):
+  **24 parent section rows + 272 leaf genres**.
 - Extracted from `sql/lib.libgenrelist.sql` (a MariaDB dump from LibRusEc /
   Flibusta — the canonical FB2 genre dictionary).
 - The source had 4 columns `(GenreId, GenreCode, GenreDesc, GenreMeta)` and **no
-  explicit parent_id**. The hierarchy is implied through `GenreMeta` ("Фантастика",
-  "Проза", …). We map it as:
+  explicit parent_id**. `GenreMeta` ("Фантастика", "Проза", …) is just a text
+  label of the section, not a real row. `parse_genres.py` **promotes each distinct
+  `GenreMeta` to a real parent genre** and links every leaf to it via `parent_id`,
+  producing a genuine two-level tree. Ids are explicit so the self-FK resolves:
 
-| CSV column     | Source                | Notes                                                       |
-|----------------|-----------------------|-------------------------------------------------------------|
-| `code`         | `GenreCode`           | unique string id                                            |
-| `parent_id`    | empty (NULL)          | hierarchy via `meta_section`; service layer can derive tree |
-| `title`        | `GenreDesc`           | human-readable name (Russian)                               |
-| `meta_section` | `GenreMeta`           | top-level group ("Фантастика", "Проза", …)                  |
-| `position`     | `GenreId`             | preserves original ordering                                 |
+| CSV column     | Parent (section) row      | Leaf (genre) row                        |
+|----------------|---------------------------|-----------------------------------------|
+| `id`           | `1..24`                   | `25..296` (source order)                |
+| `code`         | `meta_<translit-slug>`    | `GenreCode`                             |
+| `parent_id`    | empty (top-level)         | id of the parent section                |
+| `title`        | `GenreMeta` text          | `GenreDesc`                             |
+| `meta_section` | empty (it *is* the section)| `GenreMeta` (denormalized label)       |
+| `position`     | `1..24`                   | original `GenreId`                      |
 
-> **Why 272 and not 298?** The source MariaDB table had `AUTO_INCREMENT=298`
+- Because explicit ids are inserted into a `BIGSERIAL` column, changeset
+  `006-002-reset-genres-sequence` realigns the id sequence with
+  `setval(pg_get_serial_sequence('genres','id'), MAX(id))` so subsequent inserts
+  (fb2/inpx importers) don't collide.
+
+> **Why 272 leaves and not 298?** The source MariaDB table had `AUTO_INCREMENT=298`
 > (next value to be allocated), but only 272 actual rows survived in the dump:
-> there are gaps in `GenreId` (e.g. some legacy codes were deleted). Loaded
-> count therefore is **272**.
+> there are gaps in `GenreId` (e.g. some legacy codes were deleted). Leaf count
+> therefore is **272** (plus 24 generated parents = 296 total).
 
 ## inpx-import specific fields
 

@@ -41,7 +41,7 @@ public class InpxParser {
     }
 
     private InpxBookRecord parseLine(String line) {
-        String[] f = line.split("\\|", -1);
+        String[] f = line.split(String.copyValueOf(new char[]{(char) 4}), -1);
         if (f.length < 10) {
             throw new IllegalArgumentException("INPX line has fewer than 10 fields");
         }

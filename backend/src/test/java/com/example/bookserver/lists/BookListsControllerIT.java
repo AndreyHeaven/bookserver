@@ -55,7 +55,7 @@ class BookListsControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(post("/api/lists/{id}/share", listId).header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(jsonPath("$.publicUrl").value(org.hamcrest.Matchers.startsWith("http://localhost:8080/public/lists/")))
+                .andExpect(jsonPath("$.publicUrl").value(org.hamcrest.Matchers.startsWith("http://localhost:8080/api/public/lists/")))
                 .andExpect(jsonPath("$.qrPngBase64").isNotEmpty());
     }
 

@@ -8,9 +8,14 @@
     <!-- ============================================================ -->
     <!-- 006 - Seed genres (from sql/lib.libgenrelist.sql -> CSV)     -->
     <!--                                                              -->
-    <!-- 272 rows (source MySQL dump has 272 records, the original    -->
-    <!-- AUTO_INCREMENT next-value was 298 but actual data count is   -->
+    <!-- 296 rows = 24 parent section rows (promoted from the source  -->
+    <!-- GenreMeta label) + 272 leaf genres (source MySQL dump has    -->
     <!-- 272 unique GenreCode values; gaps exist in GenreId column).  -->
+    <!--                                                              -->
+    <!-- Ids are explicit in the CSV so that each leaf can point to   -->
+    <!-- its parent section via parent_id. Because we insert explicit -->
+    <!-- ids into a BIGSERIAL column, the id sequence is realigned     -->
+    <!-- afterwards so later inserts (fb2/inpx importers) don't clash. -->
     <!-- ============================================================ -->
 
     <changeSet id="006-001-seed-genres" author="bookserver">
@@ -18,6 +23,7 @@
                   tableName="genres"
                   encoding="UTF-8"
                   usePreparedStatements="true">
+            <column header="id" name="id" type="NUMERIC"/>
             <column header="code" name="code" type="STRING"/>
             <column header="parent_id" name="parent_id" type="NUMERIC"/>
             <column header="title" name="title" type="STRING"/>
@@ -27,6 +33,12 @@
         <rollback>
             <delete tableName="genres"/>
         </rollback>
+    </changeSet>
+
+    <!-- Realign the BIGSERIAL sequence past the highest explicit id. -->
+    <changeSet id="006-002-reset-genres-sequence" author="bookserver">
+        <sql>SELECT setval(pg_get_serial_sequence('genres', 'id'), (SELECT MAX(id) FROM genres))</sql>
+        <rollback/>
     </changeSet>
 
 </databaseChangeLog>

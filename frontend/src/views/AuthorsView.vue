@@ -27,7 +27,7 @@ async function load() {
       size: size.value,
     })
     authors.value = data.content
-    totalPages.value = data.totalPages || 1
+    totalPages.value = data.page.totalPages || 1
   } finally {
     loading.value = false
   }

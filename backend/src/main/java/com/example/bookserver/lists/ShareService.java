@@ -17,6 +17,8 @@ import java.util.Base64;
 public class ShareService {
 
     private static final int TOKEN_BYTES = 24;
+    /** Must mirror {@link PublicListController} mapping and the Security whitelist {@code /api/public/**}. */
+    private static final String PUBLIC_LIST_PATH = "/api/public/lists/";
 
     private final BookListShareRepository shareRepository;
     private final ListAccessGuard guard;
@@ -72,7 +74,7 @@ public class ShareService {
     }
 
     public String publicUrl(String token) {
-        return publicBaseUrl + "/public/lists/" + token;
+        return publicBaseUrl + PUBLIC_LIST_PATH + token;
     }
 
     private BookList requireSharedList(String token) {
