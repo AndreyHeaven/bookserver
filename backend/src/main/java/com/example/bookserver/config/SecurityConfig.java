@@ -61,6 +61,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         .anyRequest().authenticated()
                 )
+                // HTTP Basic lets OPDS-aware ebook readers (which cannot mint JWTs)
+                // authenticate against /opds/** using their username/password.
+                .httpBasic(org.springframework.security.config.Customizer.withDefaults())
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
