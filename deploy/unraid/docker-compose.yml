@@ -1,0 +1,63 @@
+# Production stack for Unraid (image-based, no build on the server).
+#
+# Prereqs:
+#   1. Build & push images from your dev machine:  ../../scripts/build-and-push.sh
+#   2. Copy .env.example -> .env next to this file and fill in the secrets.
+#   3. Create the appdata folders on Unraid (see comments on the volumes below).
+#
+# Deploy on Unraid (Compose.Manager plugin, or SSH):
+#   docker compose --env-file .env up -d
+#
+# Web UI:   http://<unraid-ip>:8081
+# The SPA talks to the backend same-origin via the nginx /api and /opds proxy,
+# so the backend port is NOT published to the host by default.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      # mkdir -p /mnt/user/appdata/bookserver/pgdata
+      - /mnt/user/appdata/bookserver/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    # Pushed by scripts/build-and-push.sh — e.g. docker.io/youruser/bookserver-backend:latest
+    image: ${REGISTRY}/bookserver-backend:${IMAGE_TAG:-latest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS}
+      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL}
+      APP_STORAGE_BOOKS_DIR: /data/books
+      APP_IMPORTS_BASE_DIR: /data/imports
+    volumes:
+      # mkdir -p /mnt/user/appdata/bookserver/books /mnt/user/appdata/bookserver/imports
+      - /mnt/user/appdata/bookserver/books:/data/books
+      - /mnt/user/appdata/bookserver/imports:/data/imports
+    # Uncomment to reach the backend directly from the LAN (usually not needed):
+    # ports:
+    #   - "8080:8080"
+    restart: unless-stopped
+
+  frontend:
+    image: ${REGISTRY}/bookserver-frontend:${IMAGE_TAG:-latest}
+    depends_on:
+      - backend
+    ports:
+      # Host port 80 is taken by the Unraid web UI -> expose on 8081.
+      - "8081:80"
+    restart: unless-stopped
