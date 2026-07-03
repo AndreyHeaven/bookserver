@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface BookFileRepository extends JpaRepository<BookFile, Long> {
 
     Optional<BookFile> findByStoragePath(String storagePath);
+
+    Optional<BookFile> findByStoragePathAndEntryName(String storagePath, String entryName);
 }

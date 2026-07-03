@@ -13,6 +13,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,6 +52,31 @@ class Fb2ImporterIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void fb2_folder_imports_books_packed_in_zip_archives() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        insertGenre("fb2-zip-" + suffix, "FB2 Zip Genre");
+        Path source = TEST_IMPORTS_DIR.resolve("fb2zip-" + suffix);
+        Files.createDirectories(source);
+        Path archive = source.resolve("books.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(archive), StandardCharsets.UTF_8)) {
+            addZipEntry(zip, "a.fb2", fb2("Zip Один", "Зипов", "Зип", "",
+                    "fb2-zip-" + suffix, "ru", "2020", "", "", "Zip аннотация один"));
+            addZipEntry(zip, "b.fb2", fb2("Zip Два", "Архивов", "Арх", "",
+                    "fb2-zip-" + suffix, "ru", "2021", "", "", "Zip аннотация два"));
+        }
+
+        Long jobId = importService.startImport(new StartImportRequest("fb2-folder", source.toString(), Map.of())).id();
+        awaitJob(jobId, ImportStatus.SUCCEEDED);
+
+        assertThat(count("books")).isEqualTo(2);
+        assertThat(count("book_files")).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT COUNT(DISTINCT storage_path) FROM book_files", Long.class))
+                .as("the archive is stored once and shared by both entries").isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM book_files WHERE entry_name IN ('a.fb2', 'b.fb2')", Long.class))
+                .isEqualTo(2);
+    }
+
+    @Test
     void import_source_outside_base_dir_is_rejected() {
         assertThatThrownBy(() -> importService.startImport(new StartImportRequest(
                 "fb2-folder", TEST_IMPORTS_DIR.getParent().resolve("outside").toString(), Map.of())))
@@ -70,6 +97,12 @@ class Fb2ImporterIT extends AbstractIntegrationTest {
 
     private void insertGenre(String code, String title) {
         jdbc.update("INSERT INTO genres(code, title, meta_section, position) VALUES (?, ?, 'test', 0)", code, title);
+    }
+
+    private static void addZipEntry(ZipOutputStream zip, String name, String content) throws Exception {
+        zip.putNextEntry(new ZipEntry(name));
+        zip.write(content.getBytes(StandardCharsets.UTF_8));
+        zip.closeEntry();
     }
 
     private long count(String table) {

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- ============================================================ -->
+    <!-- 007 - Store archives as-is: a book file may reference an     -->
+    <!--       entry inside a shared archive rather than a standalone -->
+    <!--       file, so storage_path is no longer globally unique.    -->
+    <!-- ============================================================ -->
+
+    <changeSet id="007-001-add-entry-name" author="bookserver">
+        <addColumn tableName="book_files">
+            <column name="entry_name" type="VARCHAR(1024)"/>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="book_files" columnName="entry_name"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="007-002-drop-storage-path-unique" author="bookserver">
+        <dropUniqueConstraint tableName="book_files" constraintName="uk_book_files_storage_path"/>
+        <rollback>
+            <addUniqueConstraint tableName="book_files" columnNames="storage_path"
+                                 constraintName="uk_book_files_storage_path"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="007-003-unique-storage-path-entry" author="bookserver">
+        <addUniqueConstraint tableName="book_files" columnNames="storage_path, entry_name"
+                             constraintName="uk_book_files_storage_path_entry"/>
+        <rollback>
+            <dropUniqueConstraint tableName="book_files" constraintName="uk_book_files_storage_path_entry"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

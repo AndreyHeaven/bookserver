@@ -101,11 +101,18 @@ public class ImportedBookWriter {
             }
         }
 
-        if (bookFileRepository.findByStoragePath(imported.storedFile().path()).isEmpty()) {
+        String storagePath = imported.storedFile().path();
+        String entryName = imported.entryName();
+        boolean fileExists = (entryName == null
+                ? bookFileRepository.findByStoragePath(storagePath)
+                : bookFileRepository.findByStoragePathAndEntryName(storagePath, entryName))
+                .isPresent();
+        if (!fileExists) {
             BookFile file = new BookFile();
             file.setBook(book);
             file.setFormat(imported.fileType().toLowerCase(Locale.ROOT));
-            file.setStoragePath(imported.storedFile().path());
+            file.setStoragePath(storagePath);
+            file.setEntryName(entryName);
             file.setSizeBytes(imported.storedFile().size());
             book.getFiles().add(file);
         }

@@ -6,6 +6,7 @@ import com.example.bookserver.imports.ImportJobProgress;
 import com.example.bookserver.imports.ImportedBook;
 import com.example.bookserver.imports.ImportedBookWriter;
 import com.example.bookserver.storage.BookFileStorage;
+import com.example.bookserver.storage.ContentDigest;
 import com.example.bookserver.storage.StoredFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,6 +94,8 @@ public class InpxZipImporter implements BookImporter {
                         (first, second) -> first,
                         LinkedHashMap::new));
         String archiveName = archivePath.getFileName().toString();
+        // Copy the archive into storage as-is exactly once; every book references an entry inside it.
+        StoredFile storedArchive = storage.store(archivePath);
         try (ZipFile zip = new ZipFile(archivePath.toFile())) {
             var entries = zip.entries();
             while (entries.hasMoreElements()) {
@@ -104,10 +107,12 @@ public class InpxZipImporter implements BookImporter {
                 if (record == null) {
                     continue;
                 }
-                StoredFile stored;
+                // Book dedup is by the entry's own content hash, not the archive's.
+                ContentDigest digest;
                 try (var input = zip.getInputStream(entry)) {
-                    stored = storage.store(input, entry.getName());
+                    digest = ContentDigest.of(input);
                 }
+                StoredFile stored = new StoredFile(storedArchive.path(), digest.size(), digest.md5());
                 writer.write(new ImportedBook(
                         record.title(),
                         record.authors(),
@@ -120,7 +125,8 @@ public class InpxZipImporter implements BookImporter {
                         record.extension().toLowerCase(Locale.ROOT),
                         archiveName,
                         catalog,
-                        stored));
+                        stored,
+                        entry.getName()));
                 progress.update(++processed, total);
             }
         }

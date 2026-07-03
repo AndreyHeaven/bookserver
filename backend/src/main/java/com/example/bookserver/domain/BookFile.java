@@ -33,8 +33,15 @@ public class BookFile {
     @Column(nullable = false, length = 16)
     private String format;
 
-    @Column(name = "storage_path", nullable = false, unique = true, length = 1024)
+    @Column(name = "storage_path", nullable = false, length = 1024)
     private String storagePath;
+
+    /**
+     * When the file lives inside a stored archive, the entry name to extract on download.
+     * {@code null} for standalone files whose {@link #storagePath} points directly at them.
+     */
+    @Column(name = "entry_name", length = 1024)
+    private String entryName;
 
     @Column(name = "size_bytes")
     private Long sizeBytes;
@@ -51,6 +58,8 @@ public class BookFile {
     public void setFormat(String format) { this.format = format; }
     public String getStoragePath() { return storagePath; }
     public void setStoragePath(String storagePath) { this.storagePath = storagePath; }
+    public String getEntryName() { return entryName; }
+    public void setEntryName(String entryName) { this.entryName = entryName; }
     public Long getSizeBytes() { return sizeBytes; }
     public void setSizeBytes(Long sizeBytes) { this.sizeBytes = sizeBytes; }
     public OffsetDateTime getCreatedAt() { return createdAt; }

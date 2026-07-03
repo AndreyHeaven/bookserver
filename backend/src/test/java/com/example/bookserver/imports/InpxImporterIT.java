@@ -20,6 +20,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class InpxImporterIT extends AbstractIntegrationTest {
 
+    /** INP field separator: the 0x04 control character used by the INPX format. */
+    private static final String INP_FIELD_SEPARATOR = "\u0004";
+
     @Autowired ImportService importService;
     @Autowired ImportJobRepository importJobRepository;
     @Autowired JdbcTemplate jdbc;
@@ -70,12 +73,19 @@ class InpxImporterIT extends AbstractIntegrationTest {
     }
 
     private void createInpx(Path inpxPath, String suffix) throws Exception {
+        // INP records separate fields with the 0x04 control character, not a printable delimiter.
         String records = String.join("\n",
-                "Толстой,Алексей,Николаевич|inpx-sf-" + suffix + "|INPX Echo|INPX Series|1|sample-archive.zip|41|1001|0|fb2|2020-01-01|ru|0|space",
-                "Петров,Петр,Петрович|inpx-adv-" + suffix + "|INPX Road|| |sample-archive.zip|41|1002|0|fb2|2021-01-01|ru|0|road");
+                inpLine("Толстой,Алексей,Николаевич", "inpx-sf-" + suffix, "INPX Echo", "INPX Series", "1",
+                        "sample-archive.zip", "41", "1001", "0", "fb2", "2020-01-01", "ru", "0", "space"),
+                inpLine("Петров,Петр,Петрович", "inpx-adv-" + suffix, "INPX Road", "", " ",
+                        "sample-archive.zip", "41", "1002", "0", "fb2", "2021-01-01", "ru", "0", "road"));
         try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(inpxPath), StandardCharsets.UTF_8)) {
             addZipEntry(zip, "records.inp", records);
         }
+    }
+
+    private static String inpLine(String... fields) {
+        return String.join(INP_FIELD_SEPARATOR, fields);
     }
 
     private static void addZipEntry(ZipOutputStream zip, String name, String content) throws Exception {

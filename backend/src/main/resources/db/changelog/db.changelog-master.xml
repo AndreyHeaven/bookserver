@@ -11,5 +11,6 @@
     <include file="db/changelog/changes/004-book-lists.xml"/>
     <include file="db/changelog/changes/005-jobs.xml"/>
     <include file="db/changelog/changes/006-seed-genres.xml"/>
+    <include file="db/changelog/changes/007-book-file-archive-entry.xml"/>
 
 </databaseChangeLog>

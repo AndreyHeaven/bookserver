@@ -3,6 +3,7 @@ package com.example.bookserver.storage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -13,6 +14,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 @Component
 public class LocalBookFileStorage implements BookFileStorage {
@@ -48,21 +51,49 @@ public class LocalBookFileStorage implements BookFileStorage {
     }
 
     @Override
-    public InputStream open(String path) throws IOException {
-        Path resolved = baseDir.resolve(path).normalize();
-        if (!resolved.startsWith(baseDir)) {
-            throw new IOException("Resolved storage path escapes books dir");
+    public StoredFile store(Path source) throws IOException {
+        try (InputStream input = Files.newInputStream(source)) {
+            return store(input, source.getFileName().toString());
         }
-        return Files.newInputStream(resolved);
+    }
+
+    @Override
+    public InputStream open(String path) throws IOException {
+        return Files.newInputStream(resolve(path));
+    }
+
+    @Override
+    public InputStream openEntry(String archivePath, String entryName) throws IOException {
+        ZipFile zip = new ZipFile(resolve(archivePath).toFile());
+        ZipEntry entry = zip.getEntry(entryName);
+        if (entry == null) {
+            zip.close();
+            throw new IOException("Entry " + entryName + " not found in archive " + archivePath);
+        }
+        // Wrap so that closing the entry stream also closes the backing archive.
+        return new FilterInputStream(zip.getInputStream(entry)) {
+            @Override
+            public void close() throws IOException {
+                try {
+                    super.close();
+                } finally {
+                    zip.close();
+                }
+            }
+        };
     }
 
     @Override
     public void delete(String path) throws IOException {
+        Files.deleteIfExists(resolve(path));
+    }
+
+    private Path resolve(String path) throws IOException {
         Path resolved = baseDir.resolve(path).normalize();
         if (!resolved.startsWith(baseDir)) {
             throw new IOException("Resolved storage path escapes books dir");
         }
-        Files.deleteIfExists(resolved);
+        return resolved;
     }
 
     private static String extension(String fileName) {

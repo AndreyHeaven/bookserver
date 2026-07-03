@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.Locale;
 import java.util.Map;
@@ -54,7 +55,10 @@ public class BookDownloadService {
                         "File " + fileId + " not found for book " + bookId));
 
         try {
-            Resource resource = new InputStreamResource(storage.open(file.getStoragePath()));
+            InputStream stream = file.getEntryName() == null
+                    ? storage.open(file.getStoragePath())
+                    : storage.openEntry(file.getStoragePath(), file.getEntryName());
+            Resource resource = new InputStreamResource(stream);
             return new BookFileDownload(resource, fileName(file), contentType(file), file.getSizeBytes());
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to open stored file " + file.getStoragePath(), e);

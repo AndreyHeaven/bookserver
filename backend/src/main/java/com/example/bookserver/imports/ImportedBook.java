@@ -15,5 +15,6 @@ public record ImportedBook(String title,
                            String fileType,
                            String archiveName,
                            String inpxSource,
-                           StoredFile storedFile) {
+                           StoredFile storedFile,
+                           String entryName) {
 }
