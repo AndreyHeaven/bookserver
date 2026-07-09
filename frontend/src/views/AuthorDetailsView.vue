@@ -1,22 +1,46 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { authorsApi } from '@/api/authors'
+import { genresApi } from '@/api/genres'
 import BookCard from '@/components/BookCard.vue'
-import type { AuthorDetailsDto, BookCardDto } from '@/types'
+import type { AuthorDetailsDto, BookCardDto, GenreNodeDto } from '@/types'
 
 const route = useRoute()
+
+interface GenreOption {
+  id: number
+  title: string
+  path: string
+}
 
 const author = ref<AuthorDetailsDto | null>(null)
 const books = ref<BookCardDto[]>([])
 const lang = ref<string | null>(null)
 const yearFrom = ref<number | null>(null)
 const yearTo = ref<number | null>(null)
-const genreId = ref<number | null>(null)
+const genreIds = ref<number[]>([])
+const genreOptions = ref<GenreOption[]>([])
 const page = ref(1)
 const size = ref(24)
 const totalPages = ref(1)
 const loading = ref(false)
+
+function flattenGenres(nodes: GenreNodeDto[], parents: string[] = []): GenreOption[] {
+  const result: GenreOption[] = []
+  for (const node of nodes) {
+    result.push({ id: node.id, title: node.title, path: parents.join(' / ') })
+    if (node.children?.length) {
+      result.push(...flattenGenres(node.children, [...parents, node.title]))
+    }
+  }
+  return result
+}
+
+async function loadGenres() {
+  const { data } = await genresApi.tree()
+  genreOptions.value = flattenGenres(data)
+}
 
 async function loadAuthor(id: number) {
   const { data } = await authorsApi.get(id)
@@ -31,7 +55,7 @@ async function loadBooks() {
       lang: lang.value || undefined,
       year_from: yearFrom.value ?? undefined,
       year_to: yearTo.value ?? undefined,
-      genre_id: genreId.value != null ? [genreId.value] : undefined,
+      genre_id: genreIds.value.length ? genreIds.value : undefined,
       page: page.value - 1,
       size: size.value,
     })
@@ -51,11 +75,13 @@ watch(
   },
   { immediate: true },
 )
-watch([lang, yearFrom, yearTo, genreId], () => {
+watch([lang, yearFrom, yearTo, genreIds], () => {
   page.value = 1
   loadBooks()
 })
 watch(page, loadBooks)
+
+onMounted(loadGenres)
 </script>
 
 <template>
@@ -85,14 +111,28 @@ watch(page, loadBooks)
           hide-details
         />
       </v-col>
-      <v-col cols="6" sm="3">
-        <v-text-field
-          v-model.number="genreId"
-          label="ID жанра"
-          type="number"
+      <v-col cols="12" sm="3">
+        <v-autocomplete
+          v-model="genreIds"
+          :items="genreOptions"
+          item-title="title"
+          item-value="id"
+          label="Жанры"
           density="compact"
           hide-details
-        />
+          multiple
+          chips
+          closable-chips
+          clearable
+        >
+          <template #item="{ props: itemProps, item }">
+            <v-list-item
+              v-bind="itemProps"
+              :title="item.raw.title"
+              :subtitle="item.raw.path || undefined"
+            />
+          </template>
+        </v-autocomplete>
       </v-col>
     </v-row>
 
