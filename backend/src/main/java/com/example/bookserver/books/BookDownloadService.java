@@ -1,6 +1,9 @@
 package com.example.bookserver.books;
 
+import com.example.bookserver.domain.Book;
+import com.example.bookserver.domain.BookAuthor;
 import com.example.bookserver.domain.BookFile;
+import com.example.bookserver.domain.Person;
 import com.example.bookserver.repo.BookFileRepository;
 import com.example.bookserver.storage.BookFileStorage;
 import jakarta.persistence.EntityNotFoundException;
@@ -13,8 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Streams the physical file backing a {@link BookFile} to the client.
@@ -66,11 +73,42 @@ public class BookDownloadService {
     }
 
     private static String fileName(BookFile file) {
-        String title = file.getBook().getTitle();
+        Book book = file.getBook();
+        String title = book.getTitle();
         String base = (title == null || title.isBlank()) ? DEFAULT_FILENAME : title.trim();
+        String authors = authorsPrefix(book);
+        if (!authors.isBlank()) {
+            base = authors + " - " + base;
+        }
         String safe = base.replaceAll("[\\\\/:*?\"<>|\\r\\n]", "_").replaceAll("\\s+", " ").trim();
         String format = file.getFormat() == null ? DEFAULT_FORMAT : file.getFormat().toLowerCase(Locale.ROOT);
         return safe + "." + format;
+    }
+
+    /**
+     * Builds the author part of the file name: the first author (by position)
+     * followed by "и другие" when the book has more than one.
+     */
+    private static String authorsPrefix(Book book) {
+        List<BookAuthor> authors = book.getAuthors().stream()
+                .sorted(Comparator.comparingInt(BookAuthor::getPosition))
+                .toList();
+        if (authors.isEmpty()) {
+            return "";
+        }
+        String first = personName(authors.getFirst().getPerson());
+        if (first.isBlank()) {
+            return "";
+        }
+        return authors.size() > 1 ? first + " и другие" : first;
+    }
+
+    /** Joins the available name parts of a person into a single display name. */
+    private static String personName(Person person) {
+        return Stream.of(person.getLastName(), person.getFirstName(), person.getMiddleName())
+                .filter(part -> part != null && !part.isBlank())
+                .map(String::trim)
+                .collect(Collectors.joining(" "));
     }
 
     private static MediaType contentType(BookFile file) {
