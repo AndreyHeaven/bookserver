@@ -16,9 +16,9 @@ Full-stack приложение **«Библиотека книг»**: ката�
 ```
 ┌──────────────┐      /api/*        ┌──────────────────────────┐        ┌──────────────┐
 │  Frontend    │  ───────────────▶  │  Backend (Spring Boot 4) │  ────▶ │  PostgreSQL  │
-│ Vue3+Vuetify │   nginx proxy      │  REST + Security(JWT)     │  JDBC  │  + Liquibase │
-│  (nginx:80)  │  ◀───────────────  │  JPA / FTS / Importers /  │        │  + FTS(GIN)  │
-└──────────────┘      JSON          │  Conversion / Lists+QR    │        └──────────────┘
+│ Vue3+Vuetify │   nginx proxy      │  REST + Security(JWT)    │  JDBC  │  + Liquibase │
+│  (nginx:80)  │  ◀───────────────  │  JPA / FTS / Importers / │        │  + FTS(GIN)  │
+└──────────────┘      JSON          │  Conversion / Lists+QR   │        └──────────────┘
                                     └──────────────────────────┘
 ```
 
