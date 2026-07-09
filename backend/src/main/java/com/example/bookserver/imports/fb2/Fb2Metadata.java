@@ -11,5 +11,7 @@ public record Fb2Metadata(String title,
                           ImportedSeries series,
                           String lang,
                           Integer year,
-                          String annotation) {
+                          String annotation,
+                          byte[] coverImage,
+                          String coverContentType) {
 }

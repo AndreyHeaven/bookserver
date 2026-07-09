@@ -12,5 +12,14 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Dev proxy so browser-issued requests to /api (e.g. <v-img src="/api/books/{id}/cover">,
+    // which bypass the axios instance) reach the backend. Override the target via
+    // VITE_DEV_API_PROXY_TARGET if the backend runs elsewhere.
+    proxy: {
+      '/api': {
+        target: process.env.VITE_DEV_API_PROXY_TARGET ?? 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
   },
 })

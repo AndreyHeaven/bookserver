@@ -1,6 +1,7 @@
 package com.example.bookserver.books;
 
 import com.example.bookserver.books.BookDownloadService.BookFileDownload;
+import com.example.bookserver.books.BookDownloadService.CoverDownload;
 import com.example.bookserver.books.dto.BookDetailsDto;
 import com.example.bookserver.books.dto.BookSearchRequest;
 import com.example.bookserver.books.dto.BookSearchResponse;
@@ -38,7 +39,7 @@ public class BooksController {
     @GetMapping
     @Operation(summary = "Search and browse books")
     public BookSearchResponse search(@RequestParam(required = false) String q,
-                                     @RequestParam(required = false) String lang,
+                                     @RequestParam(required = false) List<String> lang,
                                      @RequestParam(name = "year_from", required = false) Integer yearFrom,
                                      @RequestParam(name = "year_to", required = false) Integer yearTo,
                                      @RequestParam(name = "genre_id", required = false) List<Long> genreId,
@@ -52,7 +53,7 @@ public class BooksController {
     @GetMapping("/facets")
     @Operation(summary = "Get book facet counts")
     public FacetCountsDto facets(@RequestParam(required = false) String q,
-                                 @RequestParam(required = false) String lang,
+                                 @RequestParam(required = false) List<String> lang,
                                  @RequestParam(name = "year_from", required = false) Integer yearFrom,
                                  @RequestParam(name = "year_to", required = false) Integer yearTo,
                                  @RequestParam(name = "genre_id", required = false) List<Long> genreId,
@@ -80,5 +81,15 @@ public class BooksController {
             builder.contentLength(download.sizeBytes());
         }
         return builder.body(download.resource());
+    }
+
+    @GetMapping("/{id}/cover")
+    @Operation(summary = "Get a book cover image")
+    public ResponseEntity<Resource> cover(@PathVariable Long id) {
+        CoverDownload cover = downloadService.prepareCover(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                .contentType(cover.contentType())
+                .body(cover.resource());
     }
 }

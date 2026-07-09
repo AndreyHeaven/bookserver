@@ -35,7 +35,9 @@ export const authorsApi = {
   books(id: number, query: BookSearchQuery) {
     const params = new URLSearchParams()
     if (query.q) params.set('q', query.q)
-    if (query.lang) params.set('lang', query.lang)
+    if (query.lang) {
+      for (const l of query.lang) params.append('lang', l)
+    }
     if (query.year_from != null) params.set('year_from', String(query.year_from))
     if (query.year_to != null) params.set('year_to', String(query.year_to))
     if (query.genre_id) {

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- ============================================================ -->
+    <!-- 008 - Book covers: store the extracted cover image on the    -->
+    <!--       file system (content-addressed) and keep its relative  -->
+    <!--       path and content type on the book row.                 -->
+    <!-- ============================================================ -->
+
+    <changeSet id="008-001-add-book-cover" author="bookserver">
+        <addColumn tableName="books">
+            <column name="cover_path" type="VARCHAR(1024)"/>
+            <column name="cover_content_type" type="VARCHAR(255)"/>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="books" columnName="cover_path"/>
+            <dropColumn tableName="books" columnName="cover_content_type"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

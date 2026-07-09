@@ -66,51 +66,78 @@ watch(() => route.params.id, (id) => load(Number(id)), { immediate: true })
 <template>
   <div v-if="book">
     <v-btn variant="text" prepend-icon="mdi-arrow-left" @click="router.back()">Назад</v-btn>
-    <h1 class="text-h5 my-2">{{ book.title }}</h1>
 
-    <div class="mb-2">
-      <strong>Авторы:</strong>
-      <v-chip
-        v-for="a in book.authors"
-        :key="a.id"
-        size="small"
-        class="ml-1"
-        @click="router.push(`/authors/${a.id}`)"
+    <div class="d-flex flex-column flex-sm-row ga-4 my-2">
+      <v-img
+        v-if="book.coverUrl"
+        :src="book.coverUrl"
+        width="180"
+        max-width="180"
+        aspect-ratio="0.7"
+        cover
+        rounded="lg"
+        class="flex-grow-0 book-details__cover"
       >
-        {{ a.fullName }}
-      </v-chip>
-    </div>
+        <template #placeholder>
+          <div class="book-details__cover-fallback">
+            <v-progress-circular indeterminate size="32" width="3" />
+          </div>
+        </template>
+        <template #error>
+          <div class="book-details__cover-fallback">
+            <v-icon icon="mdi-book-open-page-variant" size="56" />
+          </div>
+        </template>
+      </v-img>
 
-    <div v-if="book.translators.length" class="mb-2">
-      <strong>Переводчики:</strong>
-      <span v-for="t in book.translators" :key="t.id" class="ml-1">{{ t.fullName }}</span>
-    </div>
+      <div class="flex-grow-1">
+        <h1 class="text-h5 mb-2">{{ book.title }}</h1>
 
-    <div class="mb-2">
-      <strong>Жанры:</strong>
-      <v-chip
-        v-for="g in book.genres"
-        :key="g.id"
-        size="small"
-        class="ml-1"
-        :title="g.path.join(' / ')"
-        @click="router.push(`/genres/${g.id}`)"
-      >
-        {{ g.title }}
-      </v-chip>
-    </div>
+        <div class="mb-2">
+          <strong>Авторы:</strong>
+          <v-chip
+            v-for="a in book.authors"
+            :key="a.id"
+            size="small"
+            class="ml-1"
+            @click="router.push(`/authors/${a.id}`)"
+          >
+            {{ a.fullName }}
+          </v-chip>
+        </div>
 
-    <div class="mb-2 text-caption">
-      <span v-if="book.year">Год: {{ book.year }} · </span>
-      <span v-if="book.lang">Язык: {{ book.lang }} · </span>
-      <span v-if="book.fileType">Формат: {{ book.fileType }}</span>
-    </div>
+        <div v-if="book.translators.length" class="mb-2">
+          <strong>Переводчики:</strong>
+          <span v-for="t in book.translators" :key="t.id" class="ml-1">{{ t.fullName }}</span>
+        </div>
 
-    <div v-if="book.series.length" class="mb-2">
-      <strong>Серии:</strong>
-      <span v-for="s in book.series" :key="s.id" class="ml-1">
-        {{ s.title }}<span v-if="s.sequenceNumber"> #{{ s.sequenceNumber }}</span>
-      </span>
+        <div class="mb-2">
+          <strong>Жанры:</strong>
+          <v-chip
+            v-for="g in book.genres"
+            :key="g.id"
+            size="small"
+            class="ml-1"
+            :title="g.path.join(' / ')"
+            @click="router.push(`/genres/${g.id}`)"
+          >
+            {{ g.title }}
+          </v-chip>
+        </div>
+
+        <div class="mb-2 text-caption">
+          <span v-if="book.year">Год: {{ book.year }} · </span>
+          <span v-if="book.lang">Язык: {{ book.lang }} · </span>
+          <span v-if="book.fileType">Формат: {{ book.fileType }}</span>
+        </div>
+
+        <div v-if="book.series.length" class="mb-2">
+          <strong>Серии:</strong>
+          <span v-for="s in book.series" :key="s.id" class="ml-1">
+            {{ s.title }}<span v-if="s.sequenceNumber"> #{{ s.sequenceNumber }}</span>
+          </span>
+        </div>
+      </div>
     </div>
 
     <v-card v-if="book.annotation" class="my-3">
@@ -169,3 +196,16 @@ watch(() => route.params.id, (id) => load(Number(id)), { immediate: true })
   </div>
   <v-progress-linear v-else-if="loading" indeterminate />
 </template>
+
+<style scoped>
+.book-details__cover-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  background-color: rgba(var(--v-theme-on-surface), 0.06);
+  color: rgba(var(--v-theme-on-surface), 0.38);
+}
+</style>

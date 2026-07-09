@@ -113,6 +113,8 @@ public class InpxZipImporter implements BookImporter {
                     digest = ContentDigest.of(input);
                 }
                 StoredFile stored = new StoredFile(storedArchive.path(), digest.size(), digest.md5());
+                // TODO: extract the cover from the FB2 entry (best-effort) via Fb2Parser.
+                // Left null for now to keep INPX imports fast and avoid re-reading each entry.
                 writer.write(new ImportedBook(
                         record.title(),
                         record.authors(),
@@ -126,7 +128,9 @@ public class InpxZipImporter implements BookImporter {
                         archiveName,
                         catalog,
                         stored,
-                        entry.getName()));
+                        entry.getName(),
+                        null,
+                        null));
                 progress.update(++processed, total);
             }
         }

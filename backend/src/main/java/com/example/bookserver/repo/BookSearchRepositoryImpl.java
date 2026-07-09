@@ -50,6 +50,9 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
         boolean needsGenreFilter = filter != null
                 && filter.genreIds() != null
                 && !filter.genreIds().isEmpty();
+        boolean needsLangFilter = filter != null
+                && filter.langs() != null
+                && !filter.langs().isEmpty();
 
         Map<String, Object> params = new HashMap<>();
         String from = "FROM books b ";
@@ -59,9 +62,9 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
             params.put("q", query);
         }
         if (filter != null) {
-            if (filter.lang() != null && !filter.lang().isBlank()) {
-                where.append(" AND b.lang = :lang ");
-                params.put("lang", filter.lang());
+            if (needsLangFilter) {
+                where.append(" AND b.lang IN (:langs) ");
+                params.put("langs", filter.langs());
             }
             if (filter.year() != null) {
                 where.append(" AND b.year = :year ");
@@ -138,6 +141,8 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
         boolean hasQuery = query != null && !query.isBlank();
         boolean needsGenreFilter = !skipGenre
                 && filter.genreIds() != null && !filter.genreIds().isEmpty();
+        boolean needsLangFilter = !skipLang
+                && filter.langs() != null && !filter.langs().isEmpty();
 
         Map<String, Object> params = new HashMap<>();
         String from = "FROM books b ";
@@ -146,9 +151,9 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
             where.append(" AND b.fts_tsv @@ plainto_tsquery('russian', :q) ");
             params.put("q", query);
         }
-        if (!skipLang && filter.lang() != null && !filter.lang().isBlank()) {
-            where.append(" AND b.lang = :lang ");
-            params.put("lang", filter.lang());
+        if (needsLangFilter) {
+            where.append(" AND b.lang IN (:langs) ");
+            params.put("langs", filter.langs());
         }
         if (!skipYear && filter.year() != null) {
             where.append(" AND b.year = :year ");
@@ -195,9 +200,9 @@ public class BookSearchRepositoryImpl implements BookSearchRepository {
             where.append(" AND b.fts_tsv @@ plainto_tsquery('russian', :q) ");
             params.put("q", query);
         }
-        if (filter.lang() != null && !filter.lang().isBlank()) {
-            where.append(" AND b.lang = :lang ");
-            params.put("lang", filter.lang());
+        if (filter.langs() != null && !filter.langs().isEmpty()) {
+            where.append(" AND b.lang IN (:langs) ");
+            params.put("langs", filter.langs());
         }
         if (filter.year() != null) {
             where.append(" AND b.year = :year ");

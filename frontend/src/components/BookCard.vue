@@ -19,7 +19,21 @@ const hiddenAuthorsCount = computed(() => props.book.authors.length - visibleAut
       :src="book.coverUrl"
       height="180"
       cover
-    />
+    >
+      <template #placeholder>
+        <div class="book-card__cover-fallback">
+          <v-icon icon="mdi-book-open-page-variant" size="48" />
+        </div>
+      </template>
+      <template #error>
+        <div class="book-card__cover-fallback">
+          <v-icon icon="mdi-book-open-page-variant" size="48" />
+        </div>
+      </template>
+    </v-img>
+    <div v-else class="book-card__cover-fallback" style="height: 180px">
+      <v-icon icon="mdi-book-open-page-variant" size="48" />
+    </div>
     <v-card-title class="text-body-1 text-wrap">{{ book.title }}</v-card-title>
     <div v-if="book.authors.length" class="px-4 pb-2 d-flex flex-wrap ga-1">
       <v-chip
@@ -56,5 +70,14 @@ const hiddenAuthorsCount = computed(() => props.book.authors.length - visibleAut
 <style scoped>
 .book-card__footer {
   background-color: rgba(var(--v-theme-on-surface), 0.02);
+}
+.book-card__cover-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(var(--v-theme-on-surface), 0.06);
+  color: rgba(var(--v-theme-on-surface), 0.38);
 }
 </style>

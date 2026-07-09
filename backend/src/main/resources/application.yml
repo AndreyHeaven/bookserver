@@ -45,6 +45,7 @@ app:
     base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
   storage:
     books-dir: ${APP_STORAGE_BOOKS_DIR:./data/books}
+    covers-dir: ${APP_STORAGE_COVERS_DIR:./data/covers}
   imports:
     base-dir: ${APP_IMPORTS_BASE_DIR:./data/imports}
 

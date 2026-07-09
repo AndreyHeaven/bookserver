@@ -62,6 +62,12 @@ public class Book {
     @Column(name = "inpx_source", length = 512)
     private String inpxSource;
 
+    @Column(name = "cover_path", length = 1024)
+    private String coverPath;
+
+    @Column(name = "cover_content_type", length = 255)
+    private String coverContentType;
+
     @Column(nullable = false)
     private boolean deleted = false;
 
@@ -120,6 +126,10 @@ public class Book {
     public void setArchiveName(String archiveName) { this.archiveName = archiveName; }
     public String getInpxSource() { return inpxSource; }
     public void setInpxSource(String inpxSource) { this.inpxSource = inpxSource; }
+    public String getCoverPath() { return coverPath; }
+    public void setCoverPath(String coverPath) { this.coverPath = coverPath; }
+    public String getCoverContentType() { return coverContentType; }
+    public void setCoverContentType(String coverContentType) { this.coverContentType = coverContentType; }
     public boolean isDeleted() { return deleted; }
     public void setDeleted(boolean deleted) { this.deleted = deleted; }
     public String getKeywords() { return keywords; }

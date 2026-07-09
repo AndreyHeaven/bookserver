@@ -13,5 +13,6 @@ public record BookDetailsDto(Long id,
                              String annotation,
                              List<GenreBriefDto> genres,
                              List<BookSeriesDto> series,
-                             List<BookFileDto> files) {
+                             List<BookFileDto> files,
+                             String coverUrl) {
 }

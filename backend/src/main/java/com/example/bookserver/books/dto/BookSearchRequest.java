@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Min;
 import java.util.List;
 
 public record BookSearchRequest(String q,
-                                String lang,
+                                List<String> lang,
                                 @Min(0) Integer yearFrom,
                                 @Min(0) Integer yearTo,
                                 List<Long> genreId,

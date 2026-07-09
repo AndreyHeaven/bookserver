@@ -5,7 +5,9 @@ import com.example.bookserver.domain.BookAuthor;
 import com.example.bookserver.domain.BookFile;
 import com.example.bookserver.domain.Person;
 import com.example.bookserver.repo.BookFileRepository;
+import com.example.bookserver.repo.BookRepository;
 import com.example.bookserver.storage.BookFileStorage;
+import com.example.bookserver.storage.CoverStorage;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
@@ -47,11 +49,18 @@ public class BookDownloadService {
             "zip", MediaType.parseMediaType("application/zip"));
 
     private final BookFileRepository bookFileRepository;
+    private final BookRepository bookRepository;
     private final BookFileStorage storage;
+    private final CoverStorage coverStorage;
 
-    public BookDownloadService(BookFileRepository bookFileRepository, BookFileStorage storage) {
+    public BookDownloadService(BookFileRepository bookFileRepository,
+                               BookRepository bookRepository,
+                               BookFileStorage storage,
+                               CoverStorage coverStorage) {
         this.bookFileRepository = bookFileRepository;
+        this.bookRepository = bookRepository;
         this.storage = storage;
+        this.coverStorage = coverStorage;
     }
 
     public BookFileDownload prepare(Long bookId, Long fileId) {
@@ -69,6 +78,37 @@ public class BookDownloadService {
             return new BookFileDownload(resource, fileName(file), contentType(file), file.getSizeBytes());
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to open stored file " + file.getStoragePath(), e);
+        }
+    }
+
+    public CoverDownload prepareCover(long bookId) {
+        Book book = bookRepository.findById(bookId)
+                .filter(b -> !b.isDeleted())
+                .orElseThrow(() -> new EntityNotFoundException("Book " + bookId + " not found"));
+        if (book.getCoverPath() == null) {
+            throw new EntityNotFoundException("Book " + bookId + " has no cover");
+        }
+        try {
+            InputStream stream = coverStorage.open(book.getCoverPath());
+            Resource resource = new InputStreamResource(stream);
+            return new CoverDownload(resource, coverContentType(book.getCoverContentType()));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to open cover for book " + bookId, e);
+        }
+    }
+
+    /**
+     * Parses the stored cover content type, falling back to {@code application/octet-stream}
+     * when it is missing or malformed (FB2 is untrusted input) so bad data never causes a 500.
+     */
+    private static MediaType coverContentType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
+        try {
+            return MediaType.parseMediaType(contentType);
+        } catch (IllegalArgumentException e) {
+            return MediaType.APPLICATION_OCTET_STREAM;
         }
     }
 
@@ -118,5 +158,9 @@ public class BookDownloadService {
 
     /** Everything needed to build the HTTP download response. */
     public record BookFileDownload(Resource resource, String fileName, MediaType contentType, Long sizeBytes) {
+    }
+
+    /** Everything needed to build the HTTP cover response. */
+    public record CoverDownload(Resource resource, MediaType contentType) {
     }
 }

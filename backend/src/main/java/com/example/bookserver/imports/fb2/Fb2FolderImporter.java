@@ -128,7 +128,9 @@ public class Fb2FolderImporter implements BookImporter {
                 archiveName,
                 null,
                 stored,
-                entryName));
+                entryName,
+                metadata.coverImage(),
+                metadata.coverContentType()));
     }
 
     private long countArchivedFb2(List<Path> archives) {

@@ -107,7 +107,7 @@ class BookRepositoryIT extends AbstractIntegrationTest {
 
         // Negative filter — wrong lang -> empty page
         Page<BookSearchProjection> wrongLang = bookRepository.search(
-                "Война", new FacetFilter("en", null, List.of()), PageRequest.of(0, 10));
+                "Война", new FacetFilter(List.of("en"), null, List.of()), PageRequest.of(0, 10));
         assertThat(wrongLang.getTotalElements()).isZero();
     }
 
@@ -221,7 +221,7 @@ class BookRepositoryIT extends AbstractIntegrationTest {
         em.clear();
 
         FacetCounts facets = bookRepository.facetCounts(
-                null, new FacetFilter("ru", null, null));
+                null, new FacetFilter(List.of("ru"), null, null));
 
         // lang facet ignores the lang filter (skip-self) → both options listed
         assertThat(facets.langs()).containsEntry("ru", 1L);

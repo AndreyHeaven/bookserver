@@ -75,3 +75,4 @@ sql/lib.b.annotations.sql
 sql/lib.libbook.sql
 sql/lib.librate.sql
 sql/lib.reviews.sql
+/.tasks/

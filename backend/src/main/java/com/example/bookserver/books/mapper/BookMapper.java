@@ -30,7 +30,7 @@ public class BookMapper {
                 book.getLang(),
                 book.getFileType(),
                 !book.getFiles().isEmpty(),
-                null);
+                coverUrl(book));
     }
 
     public BookDetailsDto toDetails(Book book) {
@@ -46,7 +46,12 @@ public class BookMapper {
                 book.getAnnotation() == null ? null : book.getAnnotation().getBody(),
                 genres(book),
                 series(book),
-                files(book));
+                files(book),
+                coverUrl(book));
+    }
+
+    private static String coverUrl(Book book) {
+        return book.getCoverPath() == null ? null : "/api/books/" + book.getId() + "/cover";
     }
 
     /** Public accessor so other domains (e.g. book lists) can render authors consistently. */

@@ -59,6 +59,7 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**",
                                 "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/books/*/cover").permitAll()
                         .anyRequest().authenticated()
                 )
                 // HTTP Basic lets OPDS-aware ebook readers (which cannot mint JWTs)

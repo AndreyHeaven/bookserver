@@ -77,7 +77,8 @@ public class BookSearchService {
                                          Integer size,
                                          String sort,
                                          Sort fallbackSort) {
-        BookSearchRequest request = new BookSearchRequest(q, lang, yearFrom, yearTo, genreIds, authorId, page, size, sort);
+        List<String> langs = (lang == null || lang.isBlank()) ? List.of() : List.of(lang);
+        BookSearchRequest request = new BookSearchRequest(q, langs, yearFrom, yearTo, genreIds, authorId, page, size, sort);
         Pageable pageable = pageable(page, size, sort, fallbackSort);
         FacetFilter filter = filter(request, includeSubgenres == null || includeSubgenres);
         return toCards(bookRepository.search(q, filter, pageable), pageable);
@@ -125,7 +126,7 @@ public class BookSearchService {
             genreIds = expandGenreIds(genreIds);
         }
         return new FacetFilter(
-                blankToNull(request.lang()),
+                normalizeLangs(request.lang()),
                 request.yearFrom(),
                 request.yearTo(),
                 genreIds,
@@ -182,7 +183,14 @@ public class BookSearchService {
                 .and(Sort.by("title").ascending());
     }
 
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
+    private static List<String> normalizeLangs(List<String> langs) {
+        if (langs == null) {
+            return List.of();
+        }
+        return langs.stream()
+                .filter(l -> l != null && !l.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
     }
 }

@@ -16,5 +16,7 @@ public record ImportedBook(String title,
                            String archiveName,
                            String inpxSource,
                            StoredFile storedFile,
-                           String entryName) {
+                           String entryName,
+                           byte[] coverImage,
+                           String coverContentType) {
 }

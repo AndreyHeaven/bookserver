@@ -4,15 +4,10 @@ import { useRoute } from 'vue-router'
 import { authorsApi } from '@/api/authors'
 import { genresApi } from '@/api/genres'
 import BookCard from '@/components/BookCard.vue'
-import type { AuthorDetailsDto, BookCardDto, GenreNodeDto } from '@/types'
+import { flattenGenres, type GenreOption } from '@/utils/genres'
+import type { AuthorDetailsDto, BookCardDto } from '@/types'
 
 const route = useRoute()
-
-interface GenreOption {
-  id: number
-  title: string
-  path: string
-}
 
 const author = ref<AuthorDetailsDto | null>(null)
 const books = ref<BookCardDto[]>([])
@@ -25,17 +20,6 @@ const page = ref(1)
 const size = ref(24)
 const totalPages = ref(1)
 const loading = ref(false)
-
-function flattenGenres(nodes: GenreNodeDto[], parents: string[] = []): GenreOption[] {
-  const result: GenreOption[] = []
-  for (const node of nodes) {
-    result.push({ id: node.id, title: node.title, path: parents.join(' / ') })
-    if (node.children?.length) {
-      result.push(...flattenGenres(node.children, [...parents, node.title]))
-    }
-  }
-  return result
-}
 
 async function loadGenres() {
   const { data } = await genresApi.tree()
@@ -52,7 +36,7 @@ async function loadBooks() {
   loading.value = true
   try {
     const { data } = await authorsApi.books(id, {
-      lang: lang.value || undefined,
+      lang: lang.value ? [lang.value] : undefined,
       year_from: yearFrom.value ?? undefined,
       year_to: yearTo.value ?? undefined,
       genre_id: genreIds.value.length ? genreIds.value : undefined,

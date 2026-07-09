@@ -13,10 +13,14 @@ import com.example.bookserver.repo.BookRepository;
 import com.example.bookserver.repo.GenreRepository;
 import com.example.bookserver.repo.PersonRepository;
 import com.example.bookserver.repo.SeriesRepository;
+import com.example.bookserver.storage.CoverStorage;
 import jakarta.persistence.EntityManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -24,11 +28,14 @@ import java.util.Set;
 @Component
 public class ImportedBookWriter {
 
+    private static final Logger log = LoggerFactory.getLogger(ImportedBookWriter.class);
+
     private final BookRepository bookRepository;
     private final PersonRepository personRepository;
     private final GenreRepository genreRepository;
     private final SeriesRepository seriesRepository;
     private final BookFileRepository bookFileRepository;
+    private final CoverStorage coverStorage;
     private final EntityManager entityManager;
 
     public ImportedBookWriter(BookRepository bookRepository,
@@ -36,12 +43,14 @@ public class ImportedBookWriter {
                               GenreRepository genreRepository,
                               SeriesRepository seriesRepository,
                               BookFileRepository bookFileRepository,
+                              CoverStorage coverStorage,
                               EntityManager entityManager) {
         this.bookRepository = bookRepository;
         this.personRepository = personRepository;
         this.genreRepository = genreRepository;
         this.seriesRepository = seriesRepository;
         this.bookFileRepository = bookFileRepository;
+        this.coverStorage = coverStorage;
         this.entityManager = entityManager;
     }
 
@@ -49,6 +58,7 @@ public class ImportedBookWriter {
     public Book write(ImportedBook imported) {
         String md5 = imported.storedFile().md5();
         Book book = bookRepository.findByMd5(md5).orElseGet(Book::new);
+        boolean isNewBook = book.getId() == null;
         book.setTitle(imported.title());
         book.setLang(imported.lang());
         book.setYear(imported.year());
@@ -59,6 +69,16 @@ public class ImportedBookWriter {
         book.setArchiveName(imported.archiveName());
         book.setInpxSource(imported.inpxSource());
         book.setDeleted(false);
+        // Only extract/store a cover for brand-new books; on dedup by md5 leave it untouched.
+        if (isNewBook && imported.coverImage() != null && imported.coverImage().length > 0) {
+            try {
+                String coverPath = coverStorage.store(imported.coverImage(), imported.coverContentType());
+                book.setCoverPath(coverPath);
+                book.setCoverContentType(imported.coverContentType());
+            } catch (IOException e) {
+                log.warn("Failed to store cover for book '{}': {}", imported.title(), e.getMessage());
+            }
+        }
         book = bookRepository.saveAndFlush(book);
 
         // Clear composite-key associations and flush the resulting DELETEs before

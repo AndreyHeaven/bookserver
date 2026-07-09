@@ -44,6 +44,7 @@ export interface BookDetailsDto {
   genres: GenreBriefDto[]
   series: BookSeriesDto[]
   files: BookFileDto[]
+  coverUrl: string | null
 }
 
 export interface FacetValue {
@@ -80,7 +81,7 @@ export interface BookSearchResponse {
 
 export interface BookSearchQuery {
   q?: string
-  lang?: string
+  lang?: string[]
   year_from?: number
   year_to?: number
   genre_id?: number[]

@@ -1,42 +1,62 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { genresApi } from '@/api/genres'
+import { flattenGenres, type GenreOption } from '@/utils/genres'
 import type { FacetCountsDto } from '@/types'
 
-defineProps<{
+withDefaults(defineProps<{
   facets: FacetCountsDto | null
-  lang: string | null
+  lang: string[]
   yearFrom: number | null
   yearTo: number | null
-  genreId: number | null
-}>()
+  genreIds: number[]
+}>(), {
+  lang: () => [],
+})
 
 const emit = defineEmits<{
-  'update:lang': [value: string | null]
+  'update:lang': [value: string[]]
   'update:yearFrom': [value: number | null]
   'update:yearTo': [value: number | null]
-  'update:genreId': [value: number | null]
+  'update:genreIds': [value: number[]]
 }>()
+
+const genreOptions = ref<GenreOption[]>([])
+
+async function loadGenres() {
+  const { data } = await genresApi.tree()
+  genreOptions.value = flattenGenres(data)
+}
+
+onMounted(loadGenres)
 </script>
 
 <template>
   <v-card>
     <v-card-title class="text-subtitle-1">Фильтры</v-card-title>
     <v-card-text>
-      <div class="text-subtitle-2 mb-1">Язык</div>
-      <v-chip-group
+      <div class="text-subtitle-2 mb-1">Языки</div>
+      <v-autocomplete
         :model-value="lang"
-        column
-        @update:model-value="emit('update:lang', $event ?? null)"
+        :items="facets?.langs ?? []"
+        item-title="value"
+        item-value="value"
+        label="Языки"
+        density="compact"
+        hide-details
+        multiple
+        chips
+        closable-chips
+        clearable
+        @update:model-value="emit('update:lang', $event ?? [])"
       >
-        <v-chip
-          v-for="l in facets?.langs ?? []"
-          :key="l.value"
-          :value="l.value"
-          size="small"
-          filter
-        >
-          {{ l.value }} ({{ l.count }})
-        </v-chip>
-      </v-chip-group>
+        <template #item="{ props: itemProps, item }">
+          <v-list-item
+            v-bind="itemProps"
+            :title="`${item.raw.value} (${item.raw.count})`"
+          />
+        </template>
+      </v-autocomplete>
 
       <v-divider class="my-3" />
       <div class="text-subtitle-2 mb-1">Год</div>
@@ -61,21 +81,28 @@ const emit = defineEmits<{
 
       <v-divider class="my-3" />
       <div class="text-subtitle-2 mb-1">Жанр</div>
-      <v-chip-group
-        :model-value="genreId"
-        column
-        @update:model-value="emit('update:genreId', $event ?? null)"
+      <v-autocomplete
+        :model-value="genreIds"
+        :items="genreOptions"
+        item-title="title"
+        item-value="id"
+        label="Жанры"
+        density="compact"
+        hide-details
+        multiple
+        chips
+        closable-chips
+        clearable
+        @update:model-value="emit('update:genreIds', $event ?? [])"
       >
-        <v-chip
-          v-for="g in facets?.genres ?? []"
-          :key="g.id"
-          :value="g.id"
-          size="small"
-          filter
-        >
-          {{ g.title }} ({{ g.count }})
-        </v-chip>
-      </v-chip-group>
+        <template #item="{ props: itemProps, item }">
+          <v-list-item
+            v-bind="itemProps"
+            :title="item.raw.title"
+            :subtitle="item.raw.path || undefined"
+          />
+        </template>
+      </v-autocomplete>
     </v-card-text>
   </v-card>
 </template>
