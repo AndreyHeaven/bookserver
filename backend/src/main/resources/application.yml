@@ -48,6 +48,9 @@ app:
     covers-dir: ${APP_STORAGE_COVERS_DIR:./data/covers}
   imports:
     base-dir: ${APP_IMPORTS_BASE_DIR:./data/imports}
+    # How imported files are persisted: `copy` (into storage.books-dir) or `in-place`
+    # (reference the original file inside imports.base-dir without copying).
+    storage-mode: ${APP_IMPORTS_STORAGE_MODE:copy}
 
 springdoc:
   api-docs:

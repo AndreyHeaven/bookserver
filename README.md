@@ -232,6 +232,7 @@ npm --prefix frontend run build
 | `APP_PUBLIC_BASE_URL` | базовый URL для share-ссылок и QR |
 | `APP_STORAGE_BOOKS_DIR` | директория хранения файлов книг |
 | `APP_IMPORTS_BASE_DIR` | базовая директория импортов |
+| `APP_IMPORTS_STORAGE_MODE` | как хранить импортируемые файлы: `copy` (копировать в `APP_STORAGE_BOOKS_DIR`, по умолчанию) или `in-place` (ссылаться на оригиналы в `APP_IMPORTS_BASE_DIR` без копирования) |
 
 ---
 

@@ -21,9 +21,16 @@ import java.util.zip.ZipFile;
 public class LocalBookFileStorage implements BookFileStorage {
 
     private final Path baseDir;
+    /** Trusted root that in-place references must stay within (same dir the importer reads from). */
+    private final Path importsBaseDir;
+    private final StorageMode storageMode;
 
-    public LocalBookFileStorage(@Value("${app.storage.books-dir:./data/books}") String baseDir) {
+    public LocalBookFileStorage(@Value("${app.storage.books-dir:./data/books}") String baseDir,
+                                @Value("${app.imports.base-dir:./data/imports}") String importsBaseDir,
+                                @Value("${app.imports.storage-mode:copy}") String storageMode) {
         this.baseDir = Path.of(baseDir).toAbsolutePath().normalize();
+        this.importsBaseDir = Path.of(importsBaseDir).toAbsolutePath().normalize();
+        this.storageMode = StorageMode.from(storageMode);
     }
 
     @Override
@@ -52,9 +59,29 @@ public class LocalBookFileStorage implements BookFileStorage {
 
     @Override
     public StoredFile store(Path source) throws IOException {
+        if (storageMode == StorageMode.IN_PLACE) {
+            return reference(source);
+        }
         try (InputStream input = Files.newInputStream(source)) {
             return store(input, source.getFileName().toString());
         }
+    }
+
+    /**
+     * Records an existing file without copying it: computes its content hash/size and returns a
+     * {@link StoredFile} whose path is the absolute location of the original. The source must live
+     * inside {@link #importsBaseDir} so later downloads can safely resolve it.
+     */
+    private StoredFile reference(Path source) throws IOException {
+        Path normalized = source.toAbsolutePath().normalize();
+        if (!normalized.startsWith(importsBaseDir)) {
+            throw new IOException("In-place source escapes imports dir: " + normalized);
+        }
+        ContentDigest digest;
+        try (InputStream input = Files.newInputStream(normalized)) {
+            digest = ContentDigest.of(input);
+        }
+        return new StoredFile(normalized.toString(), digest.size(), digest.md5());
     }
 
     @Override
@@ -89,6 +116,15 @@ public class LocalBookFileStorage implements BookFileStorage {
     }
 
     private Path resolve(String path) throws IOException {
+        Path candidate = Path.of(path);
+        // In-place references are stored as absolute paths inside the trusted imports dir.
+        if (candidate.isAbsolute()) {
+            Path normalized = candidate.normalize();
+            if (!normalized.startsWith(importsBaseDir)) {
+                throw new IOException("Resolved storage path escapes imports dir");
+            }
+            return normalized;
+        }
         Path resolved = baseDir.resolve(path).normalize();
         if (!resolved.startsWith(baseDir)) {
             throw new IOException("Resolved storage path escapes books dir");

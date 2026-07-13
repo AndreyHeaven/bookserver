@@ -78,10 +78,8 @@ public class Fb2FolderImporter implements BookImporter {
         try (InputStream input = Files.newInputStream(file)) {
             metadata = parser.parse(input);
         }
-        StoredFile stored;
-        try (InputStream input = Files.newInputStream(file)) {
-            stored = storage.store(input, file.getFileName().toString());
-        }
+        // store(Path) lets the storage layer decide whether to copy or reference in place.
+        StoredFile stored = storage.store(file);
         write(metadata, stored, null, null);
     }
 
