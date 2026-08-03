@@ -192,6 +192,7 @@ function onRowClick(_event: unknown, row: { item: BookCardDto }) {
         v-if="totalPages > 1"
         v-model="page"
         :length="totalPages"
+        :total-visible="5"
         class="mt-4"
       />
     </v-col>
