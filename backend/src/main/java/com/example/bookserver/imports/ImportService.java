@@ -10,6 +10,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.nio.file.Path;
 import java.util.Map;
@@ -36,7 +38,16 @@ public class ImportService {
         job.setImporterType(request.type());
         job.setSourcePath(source.toString());
         job = importJobRepository.save(job);
-        worker.run(job.getId(), request.type(), source, request.options() == null ? Map.of() : request.options());
+        Long jobId = job.getId();
+        Map<String, String> options = request.options() == null ? Map.of() : request.options();
+        // The worker uses another transaction in an async thread, so it must not start
+        // before this transaction commits and makes the newly created job visible.
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                worker.run(jobId, request.type(), source, options);
+            }
+        });
         return ImportJobDto.from(job);
     }
 

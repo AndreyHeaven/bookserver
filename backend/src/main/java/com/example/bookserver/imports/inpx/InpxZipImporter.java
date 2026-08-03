@@ -2,6 +2,7 @@ package com.example.bookserver.imports.inpx;
 
 import com.example.bookserver.imports.BookImporter;
 import com.example.bookserver.imports.ImportContext;
+import com.example.bookserver.imports.ImportException;
 import com.example.bookserver.imports.ImportJobProgress;
 import com.example.bookserver.imports.ImportedBook;
 import com.example.bookserver.imports.ImportedBookWriter;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -56,7 +58,7 @@ public class InpxZipImporter implements BookImporter {
     }
 
     @Override
-    public void importFrom(ImportContext context, ImportJobProgress progress) throws Exception {
+    public void importFrom(ImportContext context, ImportJobProgress progress) throws ImportException {
         if (!Files.isDirectory(context.sourcePath())) {
             throw new IllegalArgumentException("INPX source must be a directory: " + context.sourcePath());
         }
@@ -86,7 +88,7 @@ public class InpxZipImporter implements BookImporter {
     }
 
     private long importArchive(Path archivePath, List<InpxBookRecord> archiveRecords, String catalog,
-                               ImportJobProgress progress, long processed, long total) throws Exception {
+                               ImportJobProgress progress, long processed, long total) throws ImportException {
         Map<String, InpxBookRecord> byEntryName = archiveRecords.stream()
                 .collect(Collectors.toMap(
                         record -> record.zipEntryName().toLowerCase(Locale.ROOT),
@@ -95,27 +97,28 @@ public class InpxZipImporter implements BookImporter {
                         LinkedHashMap::new));
         String archiveName = archivePath.getFileName().toString();
         // Copy the archive into storage as-is exactly once; every book references an entry inside it.
-        StoredFile storedArchive = storage.store(archivePath);
-        try (ZipFile zip = new ZipFile(archivePath.toFile())) {
-            var entries = zip.entries();
-            while (entries.hasMoreElements()) {
-                ZipEntry entry = entries.nextElement();
-                if (entry.isDirectory()) {
-                    continue;
-                }
-                InpxBookRecord record = byEntryName.remove(entryFileName(entry.getName()));
-                if (record == null) {
-                    continue;
-                }
-                // Book dedup is by the entry's own content hash, not the archive's.
-                ContentDigest digest;
-                try (var input = zip.getInputStream(entry)) {
-                    digest = ContentDigest.of(input);
-                }
-                StoredFile stored = new StoredFile(storedArchive.path(), digest.size(), digest.md5());
-                // TODO: extract the cover from the FB2 entry (best-effort) via Fb2Parser.
-                // Left null for now to keep INPX imports fast and avoid re-reading each entry.
-                writer.write(new ImportedBook(
+        try {
+            StoredFile storedArchive = storage.store(archivePath);
+            try (ZipFile zip = new ZipFile(archivePath.toFile())) {
+                var entries = zip.entries();
+                while (entries.hasMoreElements()) {
+                    ZipEntry entry = entries.nextElement();
+                    if (entry.isDirectory()) {
+                        continue;
+                    }
+                    InpxBookRecord record = byEntryName.remove(entryFileName(entry.getName()));
+                    if (record == null) {
+                        continue;
+                    }
+                    // Book dedup is by the entry's own content hash, not the archive's.
+                    ContentDigest digest;
+                    try (var input = zip.getInputStream(entry)) {
+                        digest = ContentDigest.of(input);
+                    }
+                    StoredFile stored = new StoredFile(storedArchive.path(), digest.size(), digest.md5());
+                    // TODO: extract the cover from the FB2 entry (best-effort) via Fb2Parser.
+                    // Left null for now to keep INPX imports fast and avoid re-reading each entry.
+                    writer.write(new ImportedBook(
                         record.title(),
                         record.authors(),
                         record.genres(),
@@ -131,14 +134,17 @@ public class InpxZipImporter implements BookImporter {
                         entry.getName(),
                         null,
                         null));
-                progress.update(++processed, total);
+                    progress.update(++processed, total);
+                }
             }
-        }
-        if (!byEntryName.isEmpty()) {
-            log.warn("{} book file(s) listed in INPX were not found inside archive {}: {}",
+            if (!byEntryName.isEmpty()) {
+                log.warn("{} book file(s) listed in INPX were not found inside archive {}: {}",
                     byEntryName.size(), archiveName, byEntryName.keySet());
+            }
+            return processed;
+        } catch (Exception e) {
+            throw new ImportException(e.getMessage());
         }
-        return processed;
     }
 
     private List<InpxBookRecord> parseRecords(List<Path> inpxFiles) {
@@ -204,12 +210,14 @@ public class InpxZipImporter implements BookImporter {
         return null;
     }
 
-    private List<Path> listFiles(Path directory, Predicate<String> nameFilter) throws Exception {
+    private List<Path> listFiles(Path directory, Predicate<String> nameFilter) throws ImportException {
         try (var stream = Files.list(directory)) {
             return stream
                     .filter(path -> nameFilter.test(path.getFileName().toString().toLowerCase(Locale.ROOT)))
                     .sorted(Comparator.comparing(Path::toString))
                     .toList();
+        } catch (IOException e) {
+            throw new ImportException(e.getMessage());
         }
     }
 

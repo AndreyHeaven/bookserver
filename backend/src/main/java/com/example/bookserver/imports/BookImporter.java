@@ -6,5 +6,5 @@ public interface BookImporter {
 
     String description();
 
-    void importFrom(ImportContext context, ImportJobProgress progress) throws Exception;
+    void importFrom(ImportContext context, ImportJobProgress progress) throws ImportException;
 }

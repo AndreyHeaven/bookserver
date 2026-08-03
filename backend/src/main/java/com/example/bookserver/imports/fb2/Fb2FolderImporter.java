@@ -2,6 +2,7 @@ package com.example.bookserver.imports.fb2;
 
 import com.example.bookserver.imports.BookImporter;
 import com.example.bookserver.imports.ImportContext;
+import com.example.bookserver.imports.ImportException;
 import com.example.bookserver.imports.ImportJobProgress;
 import com.example.bookserver.imports.ImportedBook;
 import com.example.bookserver.imports.ImportedBookWriter;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import javax.xml.stream.XMLStreamException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -52,7 +54,7 @@ public class Fb2FolderImporter implements BookImporter {
     }
 
     @Override
-    public void importFrom(ImportContext context, ImportJobProgress progress) throws Exception {
+    public void importFrom(ImportContext context, ImportJobProgress progress) throws ImportException {
         if (!Files.isDirectory(context.sourcePath())) {
             throw new IllegalArgumentException("FB2 source must be a directory: " + context.sourcePath());
         }
@@ -73,43 +75,55 @@ public class Fb2FolderImporter implements BookImporter {
     }
 
     /** Stores a standalone FB2 file directly (no archive entry reference). */
-    private void importStandalone(Path file) throws Exception {
+    private void importStandalone(Path file) throws ImportException {
         Fb2Metadata metadata;
         try (InputStream input = Files.newInputStream(file)) {
             metadata = parser.parse(input);
+            // store(Path) lets the storage layer decide whether to copy or reference in place.
+            StoredFile stored = storage.store(file);
+            write(metadata, stored, null, null);
+        } catch (Exception e) {
+            log.error("Error parsing fb2 file: {}", file, e);
+            throw new ImportException("Error parsing fb2 file: "+file);
         }
-        // store(Path) lets the storage layer decide whether to copy or reference in place.
-        StoredFile stored = storage.store(file);
-        write(metadata, stored, null, null);
     }
 
     /** Copies an archive into storage once and imports every FB2 entry it contains. */
     private long importArchive(Path archivePath, ImportJobProgress progress, long processed, long total)
-            throws Exception {
-        String archiveName = archivePath.getFileName().toString();
-        StoredFile storedArchive = storage.store(archivePath);
-        try (ZipFile zip = new ZipFile(archivePath.toFile())) {
-            var entries = zip.entries();
-            while (entries.hasMoreElements()) {
-                ZipEntry entry = entries.nextElement();
-                if (!isFb2Entry(entry)) {
-                    continue;
+            throws ImportException {
+        try {
+            String archiveName = archivePath.getFileName().toString();
+            StoredFile storedArchive = storage.store(archivePath);
+            try (ZipFile zip = new ZipFile(archivePath.toFile())) {
+                var entries = zip.entries();
+                while (entries.hasMoreElements()) {
+                    ZipEntry entry = entries.nextElement();
+                    if (!isFb2Entry(entry)) {
+                        continue;
+                    }
+                    try {
+                        Fb2Metadata metadata;
+                        try (InputStream input = zip.getInputStream(entry)) {
+                            metadata = parser.parse(input);
+                        }
+                        // Book dedup is by the entry's own content hash, not the archive's.
+                        ContentDigest digest;
+                        try (InputStream input = zip.getInputStream(entry)) {
+                            digest = ContentDigest.of(input);
+                        }
+                        StoredFile stored = new StoredFile(storedArchive.path(), digest.size(), digest.md5());
+                        write(metadata, stored, archiveName, entry.getName());
+                        progress.update(++processed, total);
+                    } catch (Exception e) {
+                        log.error("Error parsing fb2 file: archive {} file {}", archivePath, entry.getName(), e);
+                        throw new ImportException("Error parsing fb2 file: archive "+archivePath+" file "+entry.getName());
+                    }
                 }
-                Fb2Metadata metadata;
-                try (InputStream input = zip.getInputStream(entry)) {
-                    metadata = parser.parse(input);
-                }
-                // Book dedup is by the entry's own content hash, not the archive's.
-                ContentDigest digest;
-                try (InputStream input = zip.getInputStream(entry)) {
-                    digest = ContentDigest.of(input);
-                }
-                StoredFile stored = new StoredFile(storedArchive.path(), digest.size(), digest.md5());
-                write(metadata, stored, archiveName, entry.getName());
-                progress.update(++processed, total);
             }
+            return processed;
+        } catch (Exception e) {
+            throw new ImportException(e.getMessage());
         }
-        return processed;
     }
 
     private void write(Fb2Metadata metadata, StoredFile stored, String archiveName, String entryName) {
@@ -153,12 +167,14 @@ public class Fb2FolderImporter implements BookImporter {
         return !entry.isDirectory() && entry.getName().toLowerCase(Locale.ROOT).endsWith(FB2_SUFFIX);
     }
 
-    private static List<Path> listFiles(Path directory, Predicate<String> nameFilter) throws Exception {
+    private static List<Path> listFiles(Path directory, Predicate<String> nameFilter) throws ImportException {
         try (var stream = Files.list(directory)) {
             return stream
                     .filter(path -> nameFilter.test(path.getFileName().toString().toLowerCase(Locale.ROOT)))
                     .sorted(Comparator.comparing(Path::toString))
                     .toList();
+        } catch (Exception e) {
+            throw new ImportException(e.getMessage());
         }
     }
 }
