@@ -77,6 +77,26 @@ class Fb2ImporterIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void fb2_folder_continues_after_error_and_records_failed_file() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        insertGenre("fb2-continue-" + suffix, "FB2 Continue Genre");
+        Path source = TEST_IMPORTS_DIR.resolve("fb2continue-" + suffix);
+        Files.createDirectories(source);
+        Path brokenFile = source.resolve("broken.fb2");
+        Files.writeString(brokenFile, "not an FB2 document", StandardCharsets.UTF_8);
+        Files.writeString(source.resolve("valid.fb2"), fb2("Успешная ФБ2", "Иванов", "Иван", "",
+                "fb2-continue-" + suffix, "ru", "2020", "", "", "Аннотация"), StandardCharsets.UTF_8);
+
+        Long jobId = importService.startImport(new StartImportRequest(
+                "fb2-folder", source.toString(), Map.of("stopOnError", "false"))).id();
+        awaitJob(jobId, ImportStatus.SUCCEEDED);
+
+        assertThat(count("books")).isEqualTo(1);
+        assertThat(importJobRepository.findById(jobId).orElseThrow().getMessage())
+                .contains(brokenFile.toString());
+    }
+
+    @Test
     void import_source_outside_base_dir_is_rejected() {
         assertThatThrownBy(() -> importService.startImport(new StartImportRequest(
                 "fb2-folder", TEST_IMPORTS_DIR.getParent().resolve("outside").toString(), Map.of())))

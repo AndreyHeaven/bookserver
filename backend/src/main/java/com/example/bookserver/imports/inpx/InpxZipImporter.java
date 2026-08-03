@@ -71,7 +71,8 @@ public class InpxZipImporter implements BookImporter {
             throw new IllegalArgumentException("No book .zip archives found in " + context.sourcePath());
         }
 
-        List<InpxBookRecord> records = parseRecords(inpxFiles);
+        boolean stopOnError = stopOnError(context);
+        List<InpxBookRecord> records = parseRecords(inpxFiles, progress, stopOnError);
         List<RangedArchive> archives = zipFiles.stream().map(RangedArchive::from).toList();
         Map<Path, List<InpxBookRecord>> recordsByArchive = groupByArchive(records, archives);
 
@@ -82,8 +83,19 @@ public class InpxZipImporter implements BookImporter {
         String catalog = inpxFiles.get(0).getFileName().toString();
         // Iterate archive-by-archive so every ZIP is opened and read exactly once.
         for (Map.Entry<Path, List<InpxBookRecord>> archiveRecords : recordsByArchive.entrySet()) {
-            processed = importArchive(archiveRecords.getKey(), archiveRecords.getValue(),
-                    catalog, progress, processed, total);
+            try {
+                processed = importArchive(archiveRecords.getKey(), archiveRecords.getValue(),
+                        catalog, progress, processed, total);
+            } catch (Exception e) {
+                String message = "Failed to import archive " + archiveRecords.getKey() + ": " + errorMessage(e);
+                log.error(message, e);
+                if (stopOnError) {
+                    throw new ImportException(message);
+                }
+                progress.error(message);
+                processed += archiveRecords.getValue().size();
+                progress.update(processed, total);
+            }
         }
     }
 
@@ -147,15 +159,31 @@ public class InpxZipImporter implements BookImporter {
         }
     }
 
-    private List<InpxBookRecord> parseRecords(List<Path> inpxFiles) {
-        return inpxFiles.stream()
-                .flatMap(path -> {
-                    try {
-                        return parser.parse(path).stream();
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                })
+    private static boolean stopOnError(ImportContext context) {
+        String value = context.options().get("stopOnError");
+        return value == null || Boolean.parseBoolean(value);
+    }
+
+    private static String errorMessage(Exception exception) {
+        return exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
+    }
+
+    private List<InpxBookRecord> parseRecords(List<Path> inpxFiles, ImportJobProgress progress,
+                                              boolean stopOnError) throws ImportException {
+        List<InpxBookRecord> records = new ArrayList<>();
+        for (Path inpxFile : inpxFiles) {
+            try {
+                records.addAll(parser.parse(inpxFile));
+            } catch (Exception e) {
+                String message = "Failed to parse INPX catalog " + inpxFile + ": " + errorMessage(e);
+                log.error(message, e);
+                if (stopOnError) {
+                    throw new ImportException(message);
+                }
+                progress.error(message);
+            }
+        }
+        return records.stream()
                 .filter(record -> !record.deleted())
                 .toList();
     }

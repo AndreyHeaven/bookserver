@@ -63,14 +63,23 @@ public class Fb2FolderImporter implements BookImporter {
 
         long total = fb2Files.size() + countArchivedFb2(archives);
         long processed = 0;
+        boolean stopOnError = stopOnError(context);
         progress.update(processed, total);
 
         for (Path file : fb2Files) {
-            importStandalone(file);
+            try {
+                importStandalone(file);
+            } catch (Exception e) {
+                handleError(progress, stopOnError, "Failed to import file " + file + ": " + errorMessage(e));
+            }
             progress.update(++processed, total);
         }
         for (Path archive : archives) {
-            processed = importArchive(archive, progress, processed, total);
+            try {
+                processed = importArchive(archive, progress, processed, total, stopOnError);
+            } catch (Exception e) {
+                handleError(progress, stopOnError, "Failed to import archive " + archive + ": " + errorMessage(e));
+            }
         }
     }
 
@@ -89,8 +98,8 @@ public class Fb2FolderImporter implements BookImporter {
     }
 
     /** Copies an archive into storage once and imports every FB2 entry it contains. */
-    private long importArchive(Path archivePath, ImportJobProgress progress, long processed, long total)
-            throws ImportException {
+    private long importArchive(Path archivePath, ImportJobProgress progress, long processed, long total,
+                               boolean stopOnError) throws ImportException {
         try {
             String archiveName = archivePath.getFileName().toString();
             StoredFile storedArchive = storage.store(archivePath);
@@ -115,8 +124,14 @@ public class Fb2FolderImporter implements BookImporter {
                         write(metadata, stored, archiveName, entry.getName());
                         progress.update(++processed, total);
                     } catch (Exception e) {
-                        log.error("Error parsing fb2 file: archive {} file {}", archivePath, entry.getName(), e);
-                        throw new ImportException("Error parsing fb2 file: archive "+archivePath+" file "+entry.getName());
+                        String message = "Failed to import archive entry " + archivePath + "!" + entry.getName()
+                                + ": " + errorMessage(e);
+                        log.error(message, e);
+                        if (stopOnError) {
+                            throw new ImportException(message);
+                        }
+                        progress.error(message);
+                        progress.update(++processed, total);
                     }
                 }
             }
@@ -124,6 +139,23 @@ public class Fb2FolderImporter implements BookImporter {
         } catch (Exception e) {
             throw new ImportException(e.getMessage());
         }
+    }
+
+    private static boolean stopOnError(ImportContext context) {
+        String value = context.options().get("stopOnError");
+        return value == null || Boolean.parseBoolean(value);
+    }
+
+    private static void handleError(ImportJobProgress progress, boolean stopOnError, String message)
+            throws ImportException {
+        if (stopOnError) {
+            throw new ImportException(message);
+        }
+        progress.error(message);
+    }
+
+    private static String errorMessage(Exception exception) {
+        return exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
     }
 
     private void write(Fb2Metadata metadata, StoredFile stored, String archiveName, String entryName) {

@@ -18,7 +18,9 @@ export interface ImportJobDto {
 export interface ImportJobRequest {
   type: ImporterType
   sourcePath: string
-  options?: Record<string, unknown>
+  options?: {
+    stopOnError?: boolean
+  }
 }
 
 export type ConversionFormat = 'fb2' | 'epub' | 'mobi' | 'pdf' | 'azw3'

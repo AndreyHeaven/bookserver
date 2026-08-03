@@ -14,6 +14,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
 
+
 @Component
 public class ImportWorker {
 
@@ -37,11 +38,22 @@ public class ImportWorker {
             markRunning(jobId);
             BookImporter importer = registry.get(type);
             ImportContext context = new ImportContext(jobId, type, source, options);
-            importer.importFrom(context, (processed, total) -> updateProgress(jobId, processed, total));
+            importer.importFrom(context, new ImportJobProgress() {
+                @Override
+                public void update(long processed, long total) {
+                    updateProgress(jobId, processed, total);
+                }
+
+                @Override
+                public void error(String message) {
+                    appendError(jobId, message);
+                }
+            });
             markFinished(jobId, ImportStatus.SUCCEEDED, null);
         } catch (Exception e) {
             log.error("Import job {} (type={}, source={}) failed", jobId, type, source, e);
-            markFinished(jobId, ImportStatus.FAILED, e.getMessage());
+            appendError(jobId, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+            markFinished(jobId, ImportStatus.FAILED, null);
         }
     }
 
@@ -63,11 +75,24 @@ public class ImportWorker {
         });
     }
 
+    private void appendError(Long jobId, String message) {
+        transactionTemplate.executeWithoutResult(tx -> {
+            ImportJob job = importJobRepository.findById(jobId).orElseThrow();
+            String currentMessage = job.getMessage();
+            job.setMessage(currentMessage == null || currentMessage.isBlank()
+                    ? message
+                    : currentMessage + System.lineSeparator() + message);
+            importJobRepository.save(job);
+        });
+    }
+
     private void markFinished(Long jobId, ImportStatus status, String message) {
         transactionTemplate.executeWithoutResult(tx -> {
             ImportJob job = importJobRepository.findById(jobId).orElseThrow();
             job.setStatus(status);
-            job.setMessage(message);
+            if (message != null) {
+                job.setMessage(message);
+            }
             job.setFinishedAt(now());
             importJobRepository.save(job);
         });

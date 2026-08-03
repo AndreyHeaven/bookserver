@@ -10,6 +10,7 @@ const types: { title: string; value: ImporterType }[] = [
 
 const type = ref<ImporterType>('inpx-zip')
 const sourcePath = ref('')
+const stopOnError = ref(true)
 const jobs = ref<ImportJobDto[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -37,7 +38,11 @@ async function submit() {
   loading.value = true
   error.value = null
   try {
-    await importsApi.create({ type: type.value, sourcePath: sourcePath.value })
+    await importsApi.create({
+      type: type.value,
+      sourcePath: sourcePath.value,
+      options: { stopOnError: stopOnError.value },
+    })
     sourcePath.value = ''
     await load()
   } catch (e: any) {
@@ -78,6 +83,9 @@ onUnmounted(() => {
           <v-text-field v-model="sourcePath" label="Путь к источнику" />
         </v-col>
         <v-col cols="12" sm="2" class="d-flex align-center">
+          <v-checkbox v-model="stopOnError" label="Остановить при ошибке" hide-details />
+        </v-col>
+        <v-col cols="12" sm="2" class="d-flex align-center">
           <v-btn color="primary" :loading="loading" block @click="submit">Запустить</v-btn>
         </v-col>
       </v-row>
@@ -103,8 +111,14 @@ onUnmounted(() => {
         <td>{{ j.sourcePath }}</td>
         <td><v-chip size="small" :color="statusColor(j.status)">{{ j.status }}</v-chip></td>
         <td>{{ j.processedCount }} / {{ j.totalCount }}</td>
-        <td>{{ j.message }}</td>
+        <td class="job-message">{{ j.message }}</td>
       </tr>
     </tbody>
   </v-table>
 </template>
+
+<style scoped>
+.job-message {
+  white-space: pre-line;
+}
+</style>
