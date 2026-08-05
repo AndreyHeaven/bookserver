@@ -19,6 +19,7 @@ const emit = defineEmits<{
   'update:yearFrom': [value: number | null]
   'update:yearTo': [value: number | null]
   'update:genreIds': [value: number[]]
+  'loaded:genres': [value: GenreOption[]]
 }>()
 
 const genreOptions = ref<GenreOption[]>([])
@@ -26,15 +27,14 @@ const genreOptions = ref<GenreOption[]>([])
 async function loadGenres() {
   const { data } = await genresApi.tree()
   genreOptions.value = flattenGenres(data)
+  emit('loaded:genres', genreOptions.value)
 }
 
 onMounted(loadGenres)
 </script>
 
 <template>
-  <v-card>
-    <v-card-title class="text-subtitle-1">Фильтры</v-card-title>
-    <v-card-text>
+  <div class="book-facets">
       <div class="text-subtitle-2 mb-1">Языки</div>
       <v-autocomplete
         :model-value="lang"
@@ -58,9 +58,9 @@ onMounted(loadGenres)
         </template>
       </v-autocomplete>
 
-      <v-divider class="my-3" />
-      <div class="text-subtitle-2 mb-1">Год</div>
-      <div class="d-flex ga-2">
+    <v-divider class="my-3" />
+    <div class="text-subtitle-2 mb-1">Год</div>
+    <div class="d-flex ga-2">
         <v-text-field
           :model-value="yearFrom"
           label="с"
@@ -77,12 +77,12 @@ onMounted(loadGenres)
           hide-details
           @update:model-value="emit('update:yearTo', $event ? Number($event) : null)"
         />
-      </div>
+    </div>
 
-      <v-divider class="my-3" />
-      <div class="text-subtitle-2 mb-1">Жанр</div>
-      <v-autocomplete
-        :model-value="genreIds"
+    <v-divider class="my-3" />
+    <div class="text-subtitle-2 mb-1">Жанр</div>
+    <v-autocomplete
+      :model-value="genreIds"
         :items="genreOptions"
         item-title="title"
         item-value="id"
@@ -102,7 +102,6 @@ onMounted(loadGenres)
             :subtitle="item.raw.path || undefined"
           />
         </template>
-      </v-autocomplete>
-    </v-card-text>
-  </v-card>
+    </v-autocomplete>
+  </div>
 </template>

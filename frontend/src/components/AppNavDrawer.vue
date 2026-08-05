@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{ modelValue: boolean }>()
+defineProps<{ modelValue: boolean; rail: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
 const items = [
@@ -15,6 +15,9 @@ const items = [
 <template>
   <v-navigation-drawer
     :model-value="modelValue"
+    :rail="rail"
+    :rail-width="64"
+    permanent
     @update:model-value="emit('update:modelValue', $event)"
   >
     <v-list nav>
@@ -24,7 +27,9 @@ const items = [
         :to="item.to"
         :prepend-icon="item.icon"
         :title="item.title"
-      />
+      >
+        <v-tooltip activator="parent" location="end">{{ item.title }}</v-tooltip>
+      </v-list-item>
     </v-list>
   </v-navigation-drawer>
 </template>

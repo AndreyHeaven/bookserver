@@ -6,6 +6,7 @@ import BookCard from '@/components/BookCard.vue'
 import BookFacets from '@/components/BookFacets.vue'
 import { usePreferencesStore, type ViewMode } from '@/stores/preferences'
 import type { BookCardDto, BookSearchQuery, FacetCountsDto } from '@/types'
+import type { GenreOption } from '@/utils/genres'
 
 const router = useRouter()
 const preferences = usePreferencesStore()
@@ -36,19 +37,29 @@ const size = ref(24)
 const books = ref<BookCardDto[]>([])
 const facets = ref<FacetCountsDto | null>(null)
 const totalPages = ref(1)
+const totalElements = ref(0)
 const loading = ref(false)
+const searchingRandomBook = ref(false)
+const filtersOpen = ref(false)
+const genreOptions = ref<GenreOption[]>([])
 
-let debounceTimer: ReturnType<typeof setTimeout> | undefined
+const appliedFilters = ref<Omit<BookSearchQuery, 'page' | 'size'>>({})
 
 function buildQuery(): BookSearchQuery {
   return {
-    q: q.value || undefined,
-    lang: lang.value.length ? lang.value : undefined,
-    year_from: yearFrom.value ?? undefined,
-    year_to: yearTo.value ?? undefined,
-    genre_id: genreIds.value.length ? genreIds.value : undefined,
+    ...appliedFilters.value,
     page: page.value - 1,
     size: size.value,
+  }
+}
+
+function saveAppliedFilters() {
+  appliedFilters.value = {
+    q: q.value || undefined,
+    lang: lang.value.length ? [...lang.value] : undefined,
+    year_from: yearFrom.value ?? undefined,
+    year_to: yearTo.value ?? undefined,
+    genre_id: genreIds.value.length ? [...genreIds.value] : undefined,
   }
 }
 
@@ -59,29 +70,72 @@ async function load() {
     books.value = data.content
     facets.value = data.facets
     totalPages.value = data.totalPages || 1
+    totalElements.value = data.totalElements
   } finally {
     loading.value = false
   }
 }
 
-function debouncedReset() {
-  clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    page.value = 1
+function search() {
+  saveAppliedFilters()
+  if (page.value === 1) {
     load()
-  }, 350)
+  } else {
+    page.value = 1
+  }
 }
 
-watch(q, debouncedReset)
-watch([lang, yearFrom, yearTo, genreIds], () => {
-  page.value = 1
-  load()
-})
+function resetFilters() {
+  q.value = ''
+  lang.value = []
+  yearFrom.value = null
+  yearTo.value = null
+  genreIds.value = []
+  search()
+}
+
+async function openRandomBook() {
+  if (totalElements.value === 0) {
+    return
+  }
+
+  searchingRandomBook.value = true
+  try {
+    const { data } = await booksApi.search({
+      ...appliedFilters.value,
+      page: Math.floor(Math.random() * totalElements.value),
+      size: 1,
+    })
+    const book = data.content[0]
+    if (book) {
+      openBook(book)
+    }
+  } finally {
+    searchingRandomBook.value = false
+  }
+}
+
 watch(page, load)
 
 load()
 
 const hasResults = computed(() => books.value.length > 0)
+
+const activeFiltersSummary = computed(() => {
+  const parts: string[] = []
+  if (lang.value.length) parts.push(`Языки: ${lang.value.join(', ')}`)
+  if (yearFrom.value != null || yearTo.value != null) {
+    const range = yearFrom.value != null && yearTo.value != null
+      ? `${yearFrom.value}–${yearTo.value}`
+      : yearFrom.value != null ? `с ${yearFrom.value}` : `по ${yearTo.value}`
+    parts.push(`Год: ${range}`)
+  }
+  const genres = genreIds.value
+    .map((id) => genreOptions.value.find((genre) => genre.id === id)?.title)
+    .filter((title): title is string => title != null)
+  if (genres.length) parts.push(`Жанры: ${genres.join(', ')}`)
+  return parts.join(' · ')
+})
 
 function authorsText(book: BookCardDto): string {
   return book.authors.map((a) => a.fullName).join(', ')
@@ -97,43 +151,98 @@ function onRowClick(_event: unknown, row: { item: BookCardDto }) {
 </script>
 
 <template>
-  <v-row>
-    <v-col cols="12" md="3">
-      <BookFacets
-        :facets="facets"
-        :lang="lang"
-        :year-from="yearFrom"
-        :year-to="yearTo"
-        :genre-ids="genreIds"
-        @update:lang="lang = $event"
-        @update:year-from="yearFrom = $event"
-        @update:year-to="yearTo = $event"
-        @update:genre-ids="genreIds = $event"
-      />
-    </v-col>
-    <v-col cols="12" md="9">
-      <div class="d-flex align-center ga-2">
-        <v-text-field
-          v-model="q"
-          label="Поиск книг"
-          prepend-inner-icon="mdi-magnify"
-          clearable
-          density="comfortable"
-          hide-details
-          class="flex-grow-1"
-        />
-        <v-btn-toggle
-          v-model="viewMode"
-          mandatory
-          density="comfortable"
-          color="primary"
-          variant="outlined"
-        >
-          <v-btn value="cards" icon="mdi-view-grid" title="Карточки" aria-label="Карточки" />
-          <v-btn value="table" icon="mdi-table" title="Таблица" aria-label="Таблица" />
-        </v-btn-toggle>
-      </div>
-      <v-progress-linear v-if="loading" indeterminate class="mt-2 mb-2" />
+  <v-card>
+    <v-card-text>
+      <v-form @submit.prevent="search">
+        <div class="d-flex align-center ga-2">
+          <v-text-field
+            v-model="q"
+            label="Поиск книг"
+            prepend-inner-icon="mdi-magnify"
+            clearable
+            density="comfortable"
+            hide-details
+            class="flex-grow-1"
+          />
+          <v-btn
+            :variant="filtersOpen ? 'tonal' : 'outlined'"
+            prepend-icon="mdi-filter-variant"
+            @click="filtersOpen = !filtersOpen"
+          >
+            Фильтры
+          </v-btn>
+          <div v-if="!filtersOpen" class="d-flex align-center ga-2">
+            <v-btn color="primary" type="submit" prepend-icon="mdi-magnify">Найти</v-btn>
+            <v-btn variant="text" prepend-icon="mdi-filter-remove" @click="resetFilters">Сбросить</v-btn>
+            <v-btn
+              variant="tonal"
+              prepend-icon="mdi-dice-multiple"
+              :disabled="totalElements === 0 || searchingRandomBook"
+              :loading="searchingRandomBook"
+              @click="openRandomBook"
+            >
+              Мне повезёт
+            </v-btn>
+            <v-btn-toggle
+              v-model="viewMode"
+              mandatory
+              density="comfortable"
+              color="primary"
+              variant="outlined"
+            >
+              <v-btn value="cards" icon="mdi-view-grid" title="Карточки" aria-label="Карточки" />
+              <v-btn value="table" icon="mdi-table" title="Таблица" aria-label="Таблица" />
+            </v-btn-toggle>
+          </div>
+        </div>
+        <div v-if="!filtersOpen && activeFiltersSummary" class="text-caption text-medium-emphasis mt-2">
+          {{ activeFiltersSummary }}
+        </div>
+
+        <v-expand-transition>
+          <div v-if="filtersOpen" class="mt-4">
+            <BookFacets
+              :facets="facets"
+              :lang="lang"
+              :year-from="yearFrom"
+              :year-to="yearTo"
+              :genre-ids="genreIds"
+              @update:lang="lang = $event"
+              @update:year-from="yearFrom = $event"
+              @update:year-to="yearTo = $event"
+              @update:genre-ids="genreIds = $event"
+              @loaded:genres="genreOptions = $event"
+            />
+          </div>
+        </v-expand-transition>
+
+        <div v-if="filtersOpen" class="d-flex align-center ga-2 mt-4">
+          <v-btn color="primary" type="submit" prepend-icon="mdi-magnify">Найти</v-btn>
+          <v-btn variant="text" prepend-icon="mdi-filter-remove" @click="resetFilters">Сбросить</v-btn>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-dice-multiple"
+            :disabled="totalElements === 0 || searchingRandomBook"
+            :loading="searchingRandomBook"
+            @click="openRandomBook"
+          >
+            Мне повезёт
+          </v-btn>
+          <v-btn-toggle
+            v-model="viewMode"
+            mandatory
+            density="comfortable"
+            color="primary"
+            variant="outlined"
+          >
+            <v-btn value="cards" icon="mdi-view-grid" title="Карточки" aria-label="Карточки" />
+            <v-btn value="table" icon="mdi-table" title="Таблица" aria-label="Таблица" />
+          </v-btn-toggle>
+        </div>
+      </v-form>
+    </v-card-text>
+  </v-card>
+  <v-progress-linear v-if="loading" indeterminate class="mt-2 mb-2" />
       <template v-if="hasResults">
         <v-row v-if="viewMode === 'cards'" class="mt-1">
           <v-col v-for="book in books" :key="book.id" cols="12" sm="6" md="4" lg="3">
@@ -188,15 +297,13 @@ function onRowClick(_event: unknown, row: { item: BookCardDto }) {
         </v-data-table>
       </template>
       <v-alert v-else type="info" variant="tonal" class="mt-2">Ничего не найдено</v-alert>
-      <v-pagination
-        v-if="totalPages > 1"
-        v-model="page"
-        :length="totalPages"
-        :total-visible="5"
-        class="mt-4"
-      />
-    </v-col>
-  </v-row>
+  <v-pagination
+    v-if="totalPages > 1"
+    v-model="page"
+    :length="totalPages"
+    :total-visible="5"
+    class="mt-4"
+  />
 </template>
 
 <style scoped>
