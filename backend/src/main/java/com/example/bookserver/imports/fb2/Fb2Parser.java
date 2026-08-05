@@ -7,13 +7,25 @@ import org.springframework.stereotype.Component;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamReader;
+import java.io.BufferedInputStream;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PushbackInputStream;
+import java.io.Reader;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class Fb2Parser {
+
+    private static final int ENCODING_PROBE_SIZE = 4_096;
+    private static final Pattern XML_ENCODING = Pattern.compile(
+            "<\\?xml\\s+[^>]*encoding\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"]", Pattern.CASE_INSENSITIVE);
 
     private final XMLInputFactory inputFactory = createInputFactory();
 
@@ -30,7 +42,7 @@ public class Fb2Parser {
     }
 
     public Fb2Metadata parse(InputStream input) throws Exception {
-        XMLStreamReader reader = inputFactory.createXMLStreamReader(input);
+        XMLStreamReader reader = inputFactory.createXMLStreamReader(createReader(input));
         List<ImportedAuthor> authors = new ArrayList<>();
         List<String> genres = new ArrayList<>();
         String title = null;
@@ -74,13 +86,13 @@ public class Fb2Parser {
                 } else if (inTitleInfo && isAuthorField(name)) {
                     currentAuthorField = name;
                 } else if (inTitleInfo && "book-title".equals(name)) {
-                    title = reader.getElementText();
+                    title = readElementText(reader);
                 } else if (inTitleInfo && "genre".equals(name)) {
-                    genres.add(reader.getElementText().trim());
+                    genres.add(readElementText(reader).trim());
                 } else if (inTitleInfo && "lang".equals(name)) {
-                    lang = reader.getElementText().trim();
+                    lang = readElementText(reader).trim();
                 } else if (inTitleInfo && "date".equals(name)) {
-                    year = parseYear(reader.getElementText());
+                    year = parseYear(readElementText(reader));
                 } else if (inTitleInfo && "annotation".equals(name)) {
                     annotation = readElementText(reader).trim();
                 }
@@ -117,6 +129,57 @@ public class Fb2Parser {
         }
         return new Fb2Metadata(title.trim(), authors, genres, series, lang, year, annotation,
                 coverImage, coverContentType);
+    }
+
+    /**
+     * Chooses the character set before StAX processes the XML declaration. Some files in
+     * Flibusta declare UTF-8 but are actually UTF-16 with a BOM; others use the widely
+     * understood but XML-invalid spelling {@code UTF8}. A BOM is authoritative, otherwise
+     * a supported declaration is used and UTF-8 remains the XML default.
+     */
+    private static Reader createReader(InputStream input) throws Exception {
+        PushbackInputStream stream = new PushbackInputStream(new BufferedInputStream(input), ENCODING_PROBE_SIZE);
+        byte[] probe = stream.readNBytes(ENCODING_PROBE_SIZE);
+        int offset = bomLength(probe);
+        Charset charset = charsetFromBom(probe);
+        if (charset == null) {
+            charset = charsetFromDeclaration(probe);
+        }
+        stream.unread(probe, offset, probe.length - offset);
+        return new InputStreamReader(stream, charset == null ? StandardCharsets.UTF_8 : charset);
+    }
+
+    private static int bomLength(byte[] bytes) {
+        if (bytes.length >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF) {
+            return 3;
+        }
+        if (bytes.length >= 2 && (bytes[0] & 0xFF) == 0xFE && (bytes[1] & 0xFF) == 0xFF
+                || bytes.length >= 2 && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xFE) {
+            return 2;
+        }
+        return 0;
+    }
+
+    private static Charset charsetFromBom(byte[] bytes) {
+        if (bytes.length >= 2 && (bytes[0] & 0xFF) == 0xFE && (bytes[1] & 0xFF) == 0xFF) {
+            return StandardCharsets.UTF_16BE;
+        }
+        if (bytes.length >= 2 && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xFE) {
+            return StandardCharsets.UTF_16LE;
+        }
+        return null;
+    }
+
+    private static Charset charsetFromDeclaration(byte[] bytes) {
+        Matcher matcher = XML_ENCODING.matcher(new String(bytes, StandardCharsets.ISO_8859_1));
+        if (!matcher.find()) {
+            return StandardCharsets.UTF_8;
+        }
+        try {
+            return Charset.forName(matcher.group(1).trim());
+        } catch (Exception ignored) {
+            return StandardCharsets.UTF_8;
+        }
     }
 
     /** Reads the xlink href attribute of a {@code <coverpage><image/>} element. */

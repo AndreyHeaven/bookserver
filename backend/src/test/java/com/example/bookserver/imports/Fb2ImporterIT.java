@@ -52,6 +52,33 @@ class Fb2ImporterIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void fb2_folder_accepts_utf16_bom_wrong_or_utf8_alias_declarations_and_nested_titles() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        Path source = TEST_IMPORTS_DIR.resolve("fb2-encoding-" + suffix);
+        Files.createDirectories(source);
+
+        String utf16 = fb2("UTF16", "Иванов", "Иван", "", "unknown", "not a language value", "2020", "", "", "")
+                .replace("<book-title>UTF16</book-title>", "<book-title>UTF<emphasis>16</emphasis></book-title>");
+        byte[] utf16Bytes = utf16.getBytes(StandardCharsets.UTF_16LE);
+        byte[] utf16WithBom = new byte[utf16Bytes.length + 2];
+        utf16WithBom[0] = (byte) 0xFF;
+        utf16WithBom[1] = (byte) 0xFE;
+        System.arraycopy(utf16Bytes, 0, utf16WithBom, 2, utf16Bytes.length);
+        Files.write(source.resolve("utf16.fb2"), utf16WithBom);
+        Files.writeString(source.resolve("utf8-alias.fb2"),
+                fb2("UTF8 alias", "Петров", "Петр", "", "unknown", "ru", "2021", "", "", "")
+                        .replace("encoding=\"UTF-8\"", "encoding=\"UTF8\""),
+                StandardCharsets.UTF_8);
+
+        Long jobId = importService.startImport(new StartImportRequest("fb2-folder", source.toString(), Map.of())).id();
+        awaitJob(jobId, ImportStatus.SUCCEEDED);
+
+        assertThat(jdbc.queryForObject("SELECT title FROM books WHERE title = 'UTF 16'", String.class)).isEqualTo("UTF 16");
+        assertThat(jdbc.queryForObject("SELECT lang FROM books WHERE title = 'UTF 16'", String.class)).isNull();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM books WHERE title = 'UTF8 alias'", Long.class)).isEqualTo(1);
+    }
+
+    @Test
     void fb2_folder_imports_books_packed_in_zip_archives() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         insertGenre("fb2-zip-" + suffix, "FB2 Zip Genre");

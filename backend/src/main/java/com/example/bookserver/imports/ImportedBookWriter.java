@@ -29,6 +29,10 @@ import java.util.Set;
 public class ImportedBookWriter {
 
     private static final Logger log = LoggerFactory.getLogger(ImportedBookWriter.class);
+    private static final int BOOK_TITLE_MAX_LENGTH = 1_024;
+    private static final int PERSON_NAME_MAX_LENGTH = 128;
+    private static final int SERIES_TITLE_MAX_LENGTH = 512;
+    private static final int LANGUAGE_MAX_LENGTH = 8;
 
     private final BookRepository bookRepository;
     private final PersonRepository personRepository;
@@ -59,8 +63,8 @@ public class ImportedBookWriter {
         String md5 = imported.storedFile().md5();
         Book book = bookRepository.findByMd5(md5).orElseGet(Book::new);
         boolean isNewBook = book.getId() == null;
-        book.setTitle(imported.title());
-        book.setLang(imported.lang());
+        book.setTitle(limit("book title", imported.title(), BOOK_TITLE_MAX_LENGTH));
+        book.setLang(normalizeLanguage(imported.lang()));
         book.setYear(imported.year());
         book.setKeywords(imported.keywords());
         book.setFileType(imported.fileType());
@@ -101,11 +105,13 @@ public class ImportedBookWriter {
         }
         book.getGenres().addAll(genres);
 
-        if (imported.series() != null && imported.series().title() != null && !imported.series().title().isBlank()) {
-            Series series = seriesRepository.findByTitle(imported.series().title())
+        String seriesTitle = imported.series() == null ? null
+                : limit("series title", imported.series().title(), SERIES_TITLE_MAX_LENGTH);
+        if (seriesTitle != null) {
+            Series series = seriesRepository.findByTitle(seriesTitle)
                     .orElseGet(() -> {
                         Series s = new Series();
-                        s.setTitle(imported.series().title());
+                        s.setTitle(seriesTitle);
                         return seriesRepository.saveAndFlush(s);
                     });
             book.getSeriesMembers().add(new BookSeriesMember(book, series, imported.series().sequenceNumber()));
@@ -142,15 +148,43 @@ public class ImportedBookWriter {
     }
 
     private Person upsertPerson(ImportedAuthor author) {
-        return personRepository.findByLastNameAndFirstNameAndMiddleName(
-                        clean(author.lastName()), clean(author.firstName()), clean(author.middleName()))
+        String lastName = limit("author last name", author.lastName(), PERSON_NAME_MAX_LENGTH);
+        String firstName = limit("author first name", author.firstName(), PERSON_NAME_MAX_LENGTH);
+        String middleName = limit("author middle name", author.middleName(), PERSON_NAME_MAX_LENGTH);
+        return personRepository.findByLastNameAndFirstNameAndMiddleName(lastName, firstName, middleName)
                 .orElseGet(() -> {
                     Person p = new Person();
-                    p.setLastName(clean(author.lastName()));
-                    p.setFirstName(clean(author.firstName()));
-                    p.setMiddleName(clean(author.middleName()));
+                    p.setLastName(lastName);
+                    p.setFirstName(firstName);
+                    p.setMiddleName(middleName);
                     return personRepository.saveAndFlush(p);
                 });
+    }
+
+    private static String normalizeLanguage(String value) {
+        String language = clean(value);
+        if (language == null || language.length() > LANGUAGE_MAX_LENGTH
+                || !language.matches("[A-Za-z]{2,3}(-[A-Za-z0-9]{2,4})?")) {
+            if (language != null) {
+                log.warn("Ignoring invalid FB2 language value: {}", abbreviate(language));
+            }
+            return null;
+        }
+        return language.toLowerCase(Locale.ROOT);
+    }
+
+    private static String limit(String field, String value, int maxLength) {
+        String cleaned = clean(value);
+        if (cleaned == null || cleaned.length() <= maxLength) {
+            return cleaned;
+        }
+        log.warn("Truncating {} from {} to {} characters: {}", field, cleaned.length(), maxLength,
+                abbreviate(cleaned));
+        return cleaned.substring(0, maxLength);
+    }
+
+    private static String abbreviate(String value) {
+        return value.length() <= 120 ? value : value.substring(0, 117) + "...";
     }
 
     private static String clean(String value) {
