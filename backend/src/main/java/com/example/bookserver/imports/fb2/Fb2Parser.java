@@ -125,7 +125,8 @@ public class Fb2Parser {
             }
         }
         if (title == null || title.isBlank()) {
-            throw new IllegalArgumentException("FB2 book-title is missing");
+            title = "Без названия";
+//            throw new IllegalArgumentException("FB2 book-title is missing");
         }
         return new Fb2Metadata(title.trim(), authors, genres, series, lang, year, annotation,
                 coverImage, coverContentType);
