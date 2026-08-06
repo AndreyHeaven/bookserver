@@ -54,6 +54,34 @@ class InpxImporterIT extends AbstractIntegrationTest {
         assertThat(count("books")).isEqualTo(2);
     }
 
+    @Test
+    void inpx_zip_skips_archive_when_all_mapped_books_already_exist() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        insertGenre("inpx-skip-" + suffix, "INPX Skip Genre");
+        Path source = TEST_IMPORTS_DIR.resolve("inpx-skip-" + suffix);
+        Files.createDirectories(source);
+        createBookArchive(source.resolve("sample-archive.zip"));
+        createInpx(source.resolve("sample.inpx"), suffix);
+
+        Long initialJobId = importService.startImport(new StartImportRequest("inpx-zip", source.toString(), Map.of())).id();
+        awaitJob(initialJobId, ImportStatus.SUCCEEDED);
+
+        Long hashSkippedJobId = importService.startImport(new StartImportRequest(
+                "inpx-zip", source.toString(), Map.of("archiveImportMode", "skipByHash"))).id();
+        awaitJob(hashSkippedJobId, ImportStatus.SUCCEEDED);
+
+        Long nameSkippedJobId = importService.startImport(new StartImportRequest(
+                "inpx-zip", source.toString(), Map.of("archiveImportMode", "skipByName"))).id();
+        awaitJob(nameSkippedJobId, ImportStatus.SUCCEEDED);
+
+        Long legacyHashSkippedJobId = importService.startImport(new StartImportRequest(
+                "inpx-zip", source.toString(), Map.of("skipExistingArchives", "true"))).id();
+        awaitJob(legacyHashSkippedJobId, ImportStatus.SUCCEEDED);
+
+        assertThat(count("books")).isEqualTo(2);
+        assertThat(count("book_files")).isEqualTo(2);
+    }
+
     private void awaitJob(Long jobId, ImportStatus status) throws InterruptedException {
         for (int i = 0; i < 100; i++) {
             if (importJobRepository.findById(jobId).orElseThrow().getStatus() == status) {

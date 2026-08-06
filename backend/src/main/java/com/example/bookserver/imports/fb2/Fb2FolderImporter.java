@@ -1,11 +1,12 @@
 package com.example.bookserver.imports.fb2;
 
-import com.example.bookserver.imports.BookImporter;
+import com.example.bookserver.imports.AbstractZipBookImporter;
 import com.example.bookserver.imports.ImportContext;
 import com.example.bookserver.imports.ImportException;
 import com.example.bookserver.imports.ImportJobProgress;
 import com.example.bookserver.imports.ImportedBook;
 import com.example.bookserver.imports.ImportedBookWriter;
+import com.example.bookserver.repo.BookRepository;
 import com.example.bookserver.storage.BookFileStorage;
 import com.example.bookserver.storage.ContentDigest;
 import com.example.bookserver.storage.StoredFile;
@@ -13,19 +14,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.xml.stream.XMLStreamException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 @Component
-public class Fb2FolderImporter implements BookImporter {
+public class Fb2FolderImporter extends AbstractZipBookImporter {
 
     private static final Logger log = LoggerFactory.getLogger(Fb2FolderImporter.class);
 
@@ -37,7 +35,11 @@ public class Fb2FolderImporter implements BookImporter {
     private final BookFileStorage storage;
     private final ImportedBookWriter writer;
 
-    public Fb2FolderImporter(Fb2Parser parser, BookFileStorage storage, ImportedBookWriter writer) {
+    public Fb2FolderImporter(Fb2Parser parser,
+                             BookFileStorage storage,
+                             ImportedBookWriter writer,
+                             BookRepository bookRepository) {
+        super(bookRepository);
         this.parser = parser;
         this.storage = storage;
         this.writer = writer;
@@ -50,20 +52,28 @@ public class Fb2FolderImporter implements BookImporter {
 
     @Override
     public String description() {
-        return "Imports standalone FB2 files and FB2 files packed inside ZIP archives from a folder";
+        return "Imports standalone FB2 files and FB2 files packed inside a ZIP archive from a folder or archive path";
     }
 
     @Override
     public void importFrom(ImportContext context, ImportJobProgress progress) throws ImportException {
-        if (!Files.isDirectory(context.sourcePath())) {
-            throw new IllegalArgumentException("FB2 source must be a directory: " + context.sourcePath());
+        Path source = context.sourcePath();
+        List<Path> fb2Files;
+        List<Path> archives;
+        if (Files.isDirectory(source)) {
+            fb2Files = listFiles(source, name -> name.endsWith(FB2_SUFFIX));
+            archives = listFiles(source, name -> name.endsWith(ZIP_SUFFIX));
+        } else if (isZipFile(source)) {
+            fb2Files = List.of();
+            archives = List.of(source);
+        } else {
+            throw new IllegalArgumentException("FB2 source must be a directory or ZIP archive: " + source);
         }
-        List<Path> fb2Files = listFiles(context.sourcePath(), name -> name.endsWith(FB2_SUFFIX));
-        List<Path> archives = listFiles(context.sourcePath(), name -> name.endsWith(ZIP_SUFFIX));
 
         long total = fb2Files.size() + countArchivedFb2(archives);
         long processed = 0;
         boolean stopOnError = stopOnError(context);
+        ArchiveImportMode archiveImportMode = archiveImportMode(context);
         progress.update(processed, total);
 
         for (Path file : fb2Files) {
@@ -76,7 +86,7 @@ public class Fb2FolderImporter implements BookImporter {
         }
         for (Path archive : archives) {
             try {
-                processed = importArchive(archive, progress, processed, total, stopOnError);
+                processed = importArchive(archive, progress, processed, total, stopOnError, archiveImportMode);
             } catch (Exception e) {
                 handleError(progress, stopOnError, "Failed to import archive " + archive + ": " + errorMessage(e));
             }
@@ -99,17 +109,19 @@ public class Fb2FolderImporter implements BookImporter {
 
     /** Copies an archive into storage once and imports every FB2 entry it contains. */
     private long importArchive(Path archivePath, ImportJobProgress progress, long processed, long total,
-                               boolean stopOnError) throws ImportException {
+                               boolean stopOnError, ArchiveImportMode archiveImportMode) throws ImportException {
         try {
             String archiveName = archivePath.getFileName().toString();
-            StoredFile storedArchive = storage.store(archivePath);
             try (ZipFile zip = new ZipFile(archivePath.toFile())) {
-                var entries = zip.entries();
-                while (entries.hasMoreElements()) {
-                    ZipEntry entry = entries.nextElement();
-                    if (!isFb2Entry(entry)) {
-                        continue;
-                    }
+                List<ZipEntry> fb2Entries = fb2Entries(zip);
+                if (shouldSkipArchive(archiveImportMode, archiveName, zip, fb2Entries)) {
+                    log.info("Skipping archive {} using {}", archivePath, archiveImportMode);
+                    processed += fb2Entries.size();
+                    progress.update(processed, total);
+                    return processed;
+                }
+                StoredFile storedArchive = storage.store(archivePath);
+                for (ZipEntry entry : fb2Entries) {
                     try {
                         Fb2Metadata metadata;
                         try (InputStream input = zip.getInputStream(entry)) {
@@ -141,9 +153,15 @@ public class Fb2FolderImporter implements BookImporter {
         }
     }
 
-    private static boolean stopOnError(ImportContext context) {
-        String value = context.options().get("stopOnError");
-        return value == null || Boolean.parseBoolean(value);
+
+
+    private boolean shouldSkipArchive(ArchiveImportMode mode, String archiveName, ZipFile zip,
+                                      List<ZipEntry> entries) throws Exception {
+        return switch (mode) {
+            case IMPORT_ALL -> false;
+            case SKIP_BY_NAME -> archiveExistsByName(archiveName);
+            case SKIP_BY_HASH -> allEntriesAlreadyImported(zip, entries);
+        };
     }
 
     private static void handleError(ImportJobProgress progress, boolean stopOnError, String message)
@@ -154,9 +172,6 @@ public class Fb2FolderImporter implements BookImporter {
         progress.error(message);
     }
 
-    private static String errorMessage(Exception exception) {
-        return exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
-    }
 
     private void write(Fb2Metadata metadata, StoredFile stored, String archiveName, String entryName) {
         writer.write(new ImportedBook(
@@ -199,14 +214,12 @@ public class Fb2FolderImporter implements BookImporter {
         return !entry.isDirectory() && entry.getName().toLowerCase(Locale.ROOT).endsWith(FB2_SUFFIX);
     }
 
-    private static List<Path> listFiles(Path directory, Predicate<String> nameFilter) throws ImportException {
-        try (var stream = Files.list(directory)) {
-            return stream
-                    .filter(path -> nameFilter.test(path.getFileName().toString().toLowerCase(Locale.ROOT)))
-                    .sorted(Comparator.comparing(Path::toString))
-                    .toList();
-        } catch (Exception e) {
-            throw new ImportException(e.getMessage());
-        }
+    private static boolean isZipFile(Path path) {
+        return Files.isRegularFile(path)
+                && path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(ZIP_SUFFIX);
+    }
+
+    private static List<ZipEntry> fb2Entries(ZipFile zip) {
+        return zipEntries(zip, Fb2FolderImporter::isFb2Entry);
     }
 }

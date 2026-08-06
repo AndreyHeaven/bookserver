@@ -1,11 +1,12 @@
 package com.example.bookserver.imports.inpx;
 
-import com.example.bookserver.imports.BookImporter;
+import com.example.bookserver.imports.AbstractZipBookImporter;
 import com.example.bookserver.imports.ImportContext;
 import com.example.bookserver.imports.ImportException;
 import com.example.bookserver.imports.ImportJobProgress;
 import com.example.bookserver.imports.ImportedBook;
 import com.example.bookserver.imports.ImportedBookWriter;
+import com.example.bookserver.repo.BookRepository;
 import com.example.bookserver.storage.BookFileStorage;
 import com.example.bookserver.storage.ContentDigest;
 import com.example.bookserver.storage.StoredFile;
@@ -13,16 +14,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -30,7 +28,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 @Component
-public class InpxZipImporter implements BookImporter {
+public class InpxZipImporter extends AbstractZipBookImporter {
 
     private static final Logger log = LoggerFactory.getLogger(InpxZipImporter.class);
 
@@ -41,7 +39,11 @@ public class InpxZipImporter implements BookImporter {
     private final BookFileStorage storage;
     private final ImportedBookWriter writer;
 
-    public InpxZipImporter(InpxParser parser, BookFileStorage storage, ImportedBookWriter writer) {
+    public InpxZipImporter(InpxParser parser,
+                           BookFileStorage storage,
+                           ImportedBookWriter writer,
+                           BookRepository bookRepository) {
+        super(bookRepository);
         this.parser = parser;
         this.storage = storage;
         this.writer = writer;
@@ -72,6 +74,7 @@ public class InpxZipImporter implements BookImporter {
         }
 
         boolean stopOnError = stopOnError(context);
+        ArchiveImportMode archiveImportMode = archiveImportMode(context);
         List<InpxBookRecord> records = parseRecords(inpxFiles, progress, stopOnError);
         List<RangedArchive> archives = zipFiles.stream().map(RangedArchive::from).toList();
         Map<Path, List<InpxBookRecord>> recordsByArchive = groupByArchive(records, archives);
@@ -85,7 +88,7 @@ public class InpxZipImporter implements BookImporter {
         for (Map.Entry<Path, List<InpxBookRecord>> archiveRecords : recordsByArchive.entrySet()) {
             try {
                 processed = importArchive(archiveRecords.getKey(), archiveRecords.getValue(),
-                        catalog, progress, processed, total);
+                        catalog, progress, processed, total, archiveImportMode);
             } catch (Exception e) {
                 String message = "Failed to import archive " + archiveRecords.getKey() + ": " + errorMessage(e);
                 log.error(message, e);
@@ -100,7 +103,8 @@ public class InpxZipImporter implements BookImporter {
     }
 
     private long importArchive(Path archivePath, List<InpxBookRecord> archiveRecords, String catalog,
-                               ImportJobProgress progress, long processed, long total) throws ImportException {
+                               ImportJobProgress progress, long processed, long total,
+                               ArchiveImportMode archiveImportMode) throws ImportException {
         Map<String, InpxBookRecord> byEntryName = archiveRecords.stream()
                 .collect(Collectors.toMap(
                         record -> record.zipEntryName().toLowerCase(Locale.ROOT),
@@ -110,6 +114,15 @@ public class InpxZipImporter implements BookImporter {
         String archiveName = archivePath.getFileName().toString();
         // Copy the archive into storage as-is exactly once; every book references an entry inside it.
         try {
+            try (ZipFile zip = new ZipFile(archivePath.toFile())) {
+                List<ZipEntry> mappedEntries = mappedEntries(zip, byEntryName);
+                if (shouldSkipArchive(archiveImportMode, archiveName, zip, mappedEntries, byEntryName.size())) {
+                    log.info("Skipping archive {} using {}", archivePath, archiveImportMode);
+                    processed += archiveRecords.size();
+                    progress.update(processed, total);
+                    return processed;
+                }
+            }
             StoredFile storedArchive = storage.store(archivePath);
             try (ZipFile zip = new ZipFile(archivePath.toFile())) {
                 var entries = zip.entries();
@@ -159,13 +172,18 @@ public class InpxZipImporter implements BookImporter {
         }
     }
 
-    private static boolean stopOnError(ImportContext context) {
-        String value = context.options().get("stopOnError");
-        return value == null || Boolean.parseBoolean(value);
+    private static List<ZipEntry> mappedEntries(ZipFile zip, Map<String, InpxBookRecord> byEntryName) {
+        return zipEntries(zip, entry -> !entry.isDirectory() && byEntryName.containsKey(entryFileName(entry)));
     }
 
-    private static String errorMessage(Exception exception) {
-        return exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
+    private boolean shouldSkipArchive(ArchiveImportMode mode, String archiveName, ZipFile zip,
+                                      List<ZipEntry> mappedEntries, int mappedRecordCount) throws Exception {
+        return switch (mode) {
+            case IMPORT_ALL -> false;
+            case SKIP_BY_NAME -> archiveExistsByName(archiveName);
+            case SKIP_BY_HASH -> mappedEntries.size() == mappedRecordCount
+                    && allEntriesAlreadyImported(zip, mappedEntries);
+        };
     }
 
     private List<InpxBookRecord> parseRecords(List<Path> inpxFiles, ImportJobProgress progress,
@@ -238,21 +256,6 @@ public class InpxZipImporter implements BookImporter {
         return null;
     }
 
-    private List<Path> listFiles(Path directory, Predicate<String> nameFilter) throws ImportException {
-        try (var stream = Files.list(directory)) {
-            return stream
-                    .filter(path -> nameFilter.test(path.getFileName().toString().toLowerCase(Locale.ROOT)))
-                    .sorted(Comparator.comparing(Path::toString))
-                    .toList();
-        } catch (IOException e) {
-            throw new ImportException(e.getMessage());
-        }
-    }
-
-    private static String entryFileName(String name) {
-        int slash = name.lastIndexOf('/');
-        return name.substring(slash + 1).toLowerCase(Locale.ROOT);
-    }
 
     private static Long parseLibId(String libId) {
         if (libId == null || libId.isBlank()) {

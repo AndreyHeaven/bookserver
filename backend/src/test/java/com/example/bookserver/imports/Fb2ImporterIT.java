@@ -104,6 +104,41 @@ class Fb2ImporterIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void fb2_folder_accepts_a_single_zip_archive_and_skips_it_when_every_entry_exists() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        insertGenre("fb2-single-zip-" + suffix, "FB2 Single Zip Genre");
+        Path source = TEST_IMPORTS_DIR.resolve("fb2singlezip-" + suffix);
+        Files.createDirectories(source);
+        Path archive = source.resolve("books.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(archive), StandardCharsets.UTF_8)) {
+            addZipEntry(zip, "a.fb2", fb2("Single Zip Один", "Зипов", "Зип", "",
+                    "fb2-single-zip-" + suffix, "ru", "2020", "", "", "Аннотация один"));
+            addZipEntry(zip, "b.fb2", fb2("Single Zip Два", "Архивов", "Арх", "",
+                    "fb2-single-zip-" + suffix, "ru", "2021", "", "", "Аннотация два"));
+        }
+
+        Long initialJobId = importService.startImport(new StartImportRequest("fb2-folder", archive.toString(), Map.of())).id();
+        awaitJob(initialJobId, ImportStatus.SUCCEEDED);
+        assertThat(count("books")).isEqualTo(2);
+        assertThat(count("book_files")).isEqualTo(2);
+
+        Long hashSkippedJobId = importService.startImport(new StartImportRequest(
+                "fb2-folder", archive.toString(), Map.of("archiveImportMode", "skipByHash"))).id();
+        awaitJob(hashSkippedJobId, ImportStatus.SUCCEEDED);
+
+        Long nameSkippedJobId = importService.startImport(new StartImportRequest(
+                "fb2-folder", archive.toString(), Map.of("archiveImportMode", "skipByName"))).id();
+        awaitJob(nameSkippedJobId, ImportStatus.SUCCEEDED);
+
+        Long legacyHashSkippedJobId = importService.startImport(new StartImportRequest(
+                "fb2-folder", archive.toString(), Map.of("skipExistingArchives", "true"))).id();
+        awaitJob(legacyHashSkippedJobId, ImportStatus.SUCCEEDED);
+
+        assertThat(count("books")).isEqualTo(2);
+        assertThat(count("book_files")).isEqualTo(2);
+    }
+
+    @Test
     void fb2_folder_continues_after_error_and_records_failed_file() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         insertGenre("fb2-continue-" + suffix, "FB2 Continue Genre");

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onUnmounted, ref } from 'vue'
 import { importsApi } from '@/api/imports'
-import type { ImporterType, ImportJobDto } from '@/types'
+import type { ArchiveImportMode, ImporterType, ImportJobDto } from '@/types'
 
 const types: { title: string; value: ImporterType }[] = [
   { title: 'INPX ZIP', value: 'inpx-zip' },
@@ -11,6 +11,7 @@ const types: { title: string; value: ImporterType }[] = [
 const type = ref<ImporterType>('inpx-zip')
 const sourcePath = ref('')
 const stopOnError = ref(true)
+const archiveImportMode = ref<ArchiveImportMode>('importAll')
 const jobs = ref<ImportJobDto[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -41,7 +42,10 @@ async function submit() {
     await importsApi.create({
       type: type.value,
       sourcePath: sourcePath.value,
-      options: { stopOnError: stopOnError.value },
+      options: {
+        stopOnError: stopOnError.value,
+        archiveImportMode: archiveImportMode.value,
+      },
     })
     sourcePath.value = ''
     await load()
@@ -65,6 +69,11 @@ function statusColor(status: string): string {
   }
 }
 
+function progressPercent(job: ImportJobDto): number {
+  if (job.totalCount <= 0) return 0
+  return Math.min(100, Math.round((job.processedCount / job.totalCount) * 100))
+}
+
 load()
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
@@ -82,8 +91,15 @@ onUnmounted(() => {
         <v-col cols="12" sm="6">
           <v-text-field v-model="sourcePath" label="Путь к источнику" />
         </v-col>
-        <v-col cols="12" sm="2" class="d-flex align-center">
+        <v-col cols="12" sm="3" class="d-flex align-center">
           <v-checkbox v-model="stopOnError" label="Остановить при ошибке" hide-details />
+        </v-col>
+        <v-col cols="12" sm="5">
+          <v-radio-group v-model="archiveImportMode" label="Архивы" inline hide-details>
+            <v-radio label="Импортировать все" value="importAll" />
+            <v-radio label="Пропускать по имени (быстро)" value="skipByName" />
+            <v-radio label="Пропускать по хешу (надёжно)" value="skipByHash" />
+          </v-radio-group>
         </v-col>
         <v-col cols="12" sm="2" class="d-flex align-center">
           <v-btn color="primary" :loading="loading" block @click="submit">Запустить</v-btn>
@@ -110,7 +126,7 @@ onUnmounted(() => {
         <td>{{ j.importerType }}</td>
         <td>{{ j.sourcePath }}</td>
         <td><v-chip size="small" :color="statusColor(j.status)">{{ j.status }}</v-chip></td>
-        <td>{{ j.processedCount }} / {{ j.totalCount }}</td>
+        <td>{{ j.processedCount }} из {{ j.totalCount }} ({{ progressPercent(j) }}%)</td>
         <td class="job-message">{{ j.message }}</td>
       </tr>
     </tbody>

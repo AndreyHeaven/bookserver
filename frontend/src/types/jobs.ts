@@ -1,6 +1,7 @@
 export type JobStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
 
 export type ImporterType = 'inpx-zip' | 'fb2-folder'
+export type ArchiveImportMode = 'importAll' | 'skipByName' | 'skipByHash'
 
 export interface ImportJobDto {
   id: number
@@ -20,6 +21,7 @@ export interface ImportJobRequest {
   sourcePath: string
   options?: {
     stopOnError?: boolean
+    archiveImportMode?: ArchiveImportMode
   }
 }
 

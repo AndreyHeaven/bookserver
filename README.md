@@ -143,10 +143,11 @@ curl -X POST http://localhost:8080/api/imports \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"type":"inpx-zip","sourcePath":"/data/imports/lib1"}'
 
-# fb2: sourcePath — папка с *.fb2
+# fb2: sourcePath — папка с *.fb2 / *.zip либо одиночный *.zip-архив
+# archiveImportMode: importAll (по умолчанию), skipByName (быстро) или skipByHash (надёжно)
 curl -X POST http://localhost:8080/api/imports \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"type":"fb2-folder","sourcePath":"/data/imports/fb2"}'
+  -d '{"type":"fb2-folder","sourcePath":"/data/imports/fb2/books.zip","options":{"archiveImportMode":"skipByHash"}}'
 
 # статус задачи
 curl http://localhost:8080/api/imports/1 -H "Authorization: Bearer $TOKEN"
@@ -154,7 +155,10 @@ curl http://localhost:8080/api/imports/1 -H "Authorization: Bearer $TOKEN"
 
 `sourcePath` должен находиться внутри `app.imports.base-dir` (по умолчанию `/data/imports`
 в контейнере) — пути вне базовой директории отвергаются (защита от path traversal).
-Дедупликация книг по `md5`.
+Дедупликация книг по `md5`. Для ZIP-архивов `archiveImportMode` определяет предварительную проверку:
+`importAll` импортирует все, `skipByName` пропускает архив при наличии в БД хотя бы одной книги
+с тем же именем архива, а `skipByHash` пропускает его только если все выбранные записи уже есть по MD5.
+Старый параметр `skipExistingArchives: true` поддерживается и эквивалентен `skipByHash`.
 
 Формат `.inp` описан в `backend/src/main/resources/META-INF/inpx-format.md`.
 

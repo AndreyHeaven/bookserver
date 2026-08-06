@@ -7,11 +7,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
 public interface BookRepository extends JpaRepository<Book, Long>, BookSearchRepository {
 
     Optional<Book> findByMd5(String md5);
+
+    @Query("SELECT b.md5 FROM Book b WHERE b.md5 IN :md5s")
+    Set<String> findExistingMd5s(@Param("md5s") Collection<String> md5s);
+
+    boolean existsByArchiveName(String archiveName);
 
     /** Most recently imported books first — backs the OPDS "New" acquisition feed. */
     Page<Book> findByDeletedFalseOrderByCreatedAtDesc(Pageable pageable);
