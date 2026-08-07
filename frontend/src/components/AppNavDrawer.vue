@@ -1,15 +1,22 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+
 defineProps<{ modelValue: boolean; rail: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
-const items = [
+const auth = useAuthStore()
+const items = computed(() => [
   { title: 'Книги', icon: 'mdi-book-open-variant', to: '/books' },
   { title: 'Авторы', icon: 'mdi-account-group', to: '/authors' },
   { title: 'Жанры', icon: 'mdi-tag-multiple', to: '/genres' },
   { title: 'Мои списки', icon: 'mdi-format-list-bulleted', to: '/lists' },
-  { title: 'Импорт', icon: 'mdi-database-import', to: '/imports' },
+  ...(auth.isAdmin ? [
+    { title: 'Импорт', icon: 'mdi-database-import', to: '/imports' },
+    { title: 'Администрирование', icon: 'mdi-shield-crown', to: '/admin' },
+  ] : []),
   { title: 'Конвертация', icon: 'mdi-swap-horizontal', to: '/conversions' },
-]
+])
 </script>
 
 <template>

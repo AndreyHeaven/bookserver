@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { booksApi } from '@/api/books'
 import { listsApi } from '@/api/lists'
 import ConvertBookDialog from '@/components/ConvertBookDialog.vue'
@@ -8,6 +9,7 @@ import type { BookDetailsDto, BookFileDto, BookListDto } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 const book = ref<BookDetailsDto | null>(null)
 const loading = ref(false)
@@ -18,6 +20,9 @@ const addListOpen = ref(false)
 const myLists = ref<BookListDto[]>([])
 const selectedListId = ref<number | null>(null)
 const addMsg = ref<string | null>(null)
+const editOpen = ref(false)
+const coverPreviewOpen = ref(false)
+const editForm = ref({ title: '', lang: '', year: null as number | null, annotation: '', keywords: '' })
 
 async function load(id: number) {
   loading.value = true
@@ -27,6 +32,25 @@ async function load(id: number) {
   } finally {
     loading.value = false
   }
+}
+
+function openEdit() {
+  if (!book.value) return
+  editForm.value = {
+    title: book.value.title,
+    lang: book.value.lang ?? '',
+    year: book.value.year,
+    annotation: book.value.annotation ?? '',
+    keywords: book.value.keywords ?? '',
+  }
+  editOpen.value = true
+}
+
+async function saveEdit() {
+  if (!book.value) return
+  const { data } = await booksApi.update(book.value.id, editForm.value)
+  book.value = data
+  editOpen.value = false
 }
 
 function openConvert(fileId: number) {
@@ -85,7 +109,9 @@ watch(() => route.params.id, (id) => load(Number(id)), { immediate: true })
         aspect-ratio="0.7"
         cover
         rounded="lg"
-        class="flex-grow-0 book-details__cover"
+        class="flex-grow-0 book-details__cover book-details__cover--clickable"
+        title="Открыть обложку в полном размере"
+        @click="coverPreviewOpen = true"
       >
         <template #placeholder>
           <div class="book-details__cover-fallback">
@@ -154,9 +180,12 @@ watch(() => route.params.id, (id) => load(Number(id)), { immediate: true })
       <v-card-text>{{ book.annotation }}</v-card-text>
     </v-card>
 
-    <v-btn color="primary" prepend-icon="mdi-playlist-plus" class="mb-3" @click="openAddToList">
-      Добавить в список
-    </v-btn>
+    <div class="d-flex ga-2 mb-3">
+      <v-btn color="primary" prepend-icon="mdi-playlist-plus" @click="openAddToList">
+        Добавить в список
+      </v-btn>
+      <v-btn v-if="auth.isAdmin" prepend-icon="mdi-pencil" @click="openEdit">Изменить</v-btn>
+    </div>
 
     <v-card>
       <v-card-title class="text-subtitle-1">Файлы</v-card-title>
@@ -181,6 +210,32 @@ watch(() => route.params.id, (id) => load(Number(id)), { immediate: true })
     </v-card>
 
     <ConvertBookDialog v-model="convertOpen" :book-file-id="convertFileId" />
+
+    <v-dialog v-model="coverPreviewOpen" max-width="min(900px, 95vw)">
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <span class="text-truncate">{{ book.title }}</span>
+          <v-spacer />
+          <v-btn icon="mdi-close" variant="text" aria-label="Закрыть" @click="coverPreviewOpen = false" />
+        </v-card-title>
+        <v-card-text class="pa-0 book-details__cover-preview">
+          <v-img v-if="book.coverUrl" :src="book.coverUrl" max-height="80vh" contain />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="editOpen" max-width="640">
+      <v-card>
+        <v-card-title>Изменить книгу</v-card-title>
+        <v-card-text>
+          <v-text-field v-model="editForm.title" label="Название" />
+          <v-row><v-col><v-text-field v-model="editForm.lang" label="Язык" /></v-col><v-col><v-text-field v-model.number="editForm.year" type="number" label="Год" /></v-col></v-row>
+          <v-textarea v-model="editForm.annotation" label="Аннотация" rows="4" />
+          <v-textarea v-model="editForm.keywords" label="Ключевые слова" rows="2" />
+        </v-card-text>
+        <v-card-actions><v-spacer /><v-btn @click="editOpen = false">Отмена</v-btn><v-btn color="primary" @click="saveEdit">Сохранить</v-btn></v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <v-dialog v-model="addListOpen" max-width="420">
       <v-card>
@@ -207,6 +262,14 @@ watch(() => route.params.id, (id) => load(Number(id)), { immediate: true })
 </template>
 
 <style scoped>
+.book-details__cover--clickable {
+  cursor: zoom-in;
+}
+
+.book-details__cover-preview {
+  background-color: rgba(var(--v-theme-on-surface), 0.06);
+}
+
 .book-details__cover-fallback {
   display: flex;
   align-items: center;

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="010-001-create-site-settings" author="bookserver">
+        <createTable tableName="site_settings">
+            <column name="id" type="INTEGER">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="registration_enabled" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="first_public_registration_completed" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <insert tableName="site_settings">
+            <column name="id" valueNumeric="1"/>
+            <column name="registration_enabled" valueBoolean="true"/>
+            <column name="first_public_registration_completed" valueBoolean="false"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="010-002-bootstrap-admin" author="bookserver">
+        <insert tableName="users">
+            <column name="username" value="admin"/>
+            <column name="password_hash" value="$2b$10$Vdz4/8ccIpK2S6WvSoPOoOp0Z9uMpNNW6Z578vlNMkf8.OS9PlSN2"/>
+            <column name="enabled" valueBoolean="true"/>
+        </insert>
+        <insert tableName="user_roles">
+            <column name="user_id" valueComputed="(SELECT id FROM users WHERE username = 'admin')"/>
+            <column name="role_id" valueComputed="(SELECT id FROM roles WHERE name = 'ROLE_ADMIN')"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

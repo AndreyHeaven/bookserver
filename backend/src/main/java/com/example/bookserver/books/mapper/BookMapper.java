@@ -44,6 +44,7 @@ public class BookMapper {
                 book.getFileType(),
                 book.getFileSize(),
                 book.getAnnotation() == null ? null : book.getAnnotation().getBody(),
+                book.getKeywords(),
                 genres(book),
                 series(book),
                 files(book),

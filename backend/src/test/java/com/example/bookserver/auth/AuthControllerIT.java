@@ -43,7 +43,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.username").value("alice"))
                 .andExpect(jsonPath("$.email").value("alice@example.com"))
-                .andExpect(jsonPath("$.roles[0]").value("ROLE_USER"));
+                .andExpect(jsonPath("$.roles[0]").value("ROLE_ADMIN"));
 
         assertThat(userRepository.findByUsername("alice")).isPresent();
     }

@@ -47,7 +47,12 @@ const routes: RouteRecordRaw[] = [
         name: 'list-details',
         component: () => import('@/views/ListDetailsView.vue'),
       },
-      { path: 'imports', name: 'imports', component: () => import('@/views/ImportsView.vue') },
+      {
+        path: 'imports', name: 'imports', component: () => import('@/views/ImportsView.vue'), meta: { requiresAdmin: true },
+      },
+      {
+        path: 'admin', name: 'admin', component: () => import('@/views/AdminView.vue'), meta: { requiresAdmin: true },
+      },
       {
         path: 'conversions',
         name: 'conversions',
@@ -67,6 +72,9 @@ router.beforeEach((to) => {
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: 'books' }
   }
   return true
 })

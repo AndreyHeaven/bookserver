@@ -6,16 +6,20 @@ import com.example.bookserver.books.dto.BookDetailsDto;
 import com.example.bookserver.books.dto.BookSearchRequest;
 import com.example.bookserver.books.dto.BookSearchResponse;
 import com.example.bookserver.books.dto.FacetCountsDto;
+import com.example.bookserver.books.dto.UpdateBookRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,10 +34,13 @@ public class BooksController {
 
     private final BookSearchService service;
     private final BookDownloadService downloadService;
+    private final BookAdministrationService administrationService;
 
-    public BooksController(BookSearchService service, BookDownloadService downloadService) {
+    public BooksController(BookSearchService service, BookDownloadService downloadService,
+                           BookAdministrationService administrationService) {
         this.service = service;
         this.downloadService = downloadService;
+        this.administrationService = administrationService;
     }
 
     @GetMapping
@@ -65,6 +72,13 @@ public class BooksController {
     @Operation(summary = "Get book details")
     public BookDetailsDto details(@PathVariable Long id) {
         return service.getDetails(id);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update editable book metadata")
+    public BookDetailsDto update(@PathVariable Long id, @jakarta.validation.Valid @RequestBody UpdateBookRequest request) {
+        return administrationService.update(id, request);
     }
 
     @GetMapping("/{id}/files/{fileId}")

@@ -8,7 +8,9 @@ import com.example.bookserver.auth.dto.TokenResponse;
 import com.example.bookserver.domain.RoleEntity;
 import com.example.bookserver.domain.UserEntity;
 import com.example.bookserver.repo.RoleRepository;
+import com.example.bookserver.repo.SiteSettingsRepository;
 import com.example.bookserver.repo.UserRepository;
+import com.example.bookserver.domain.SiteSettings;
 import com.example.bookserver.security.CustomUserDetailsService;
 import com.example.bookserver.security.JwtService;
 import com.example.bookserver.security.UserPrincipal;
@@ -33,9 +35,11 @@ import java.util.HashSet;
 public class AuthService {
 
     public static final String DEFAULT_ROLE = "ROLE_USER";
+    public static final String ADMIN_ROLE = "ROLE_ADMIN";
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final SiteSettingsRepository settingsRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -43,12 +47,14 @@ public class AuthService {
 
     public AuthService(UserRepository userRepository,
                        RoleRepository roleRepository,
+                       SiteSettingsRepository settingsRepository,
                        PasswordEncoder passwordEncoder,
                        AuthenticationManager authenticationManager,
                        JwtService jwtService,
                        CustomUserDetailsService userDetailsService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.settingsRepository = settingsRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
@@ -57,6 +63,10 @@ public class AuthService {
 
     @Transactional
     public MeResponse register(RegisterRequest request) {
+        SiteSettings settings = settingsRepository.lockSingleton();
+        if (!settings.isRegistrationEnabled()) {
+            throw new org.springframework.security.access.AccessDeniedException("Registration is disabled");
+        }
         // Pre-checks raise DataIntegrityViolationException (HTTP 409 via GlobalExceptionHandler),
         // consistent with the race-condition path where the DB unique constraint fires directly.
         if (userRepository.existsByUsername(request.username())) {
@@ -70,6 +80,12 @@ public class AuthService {
         RoleEntity userRole = roleRepository.findByName(DEFAULT_ROLE)
                 .orElseThrow(() -> new IllegalStateException(
                         "Default role " + DEFAULT_ROLE + " is missing — Liquibase seed not applied?"));
+        RoleEntity role = userRole;
+        if (!settings.isFirstPublicRegistrationCompleted()) {
+            role = roleRepository.findByName(ADMIN_ROLE)
+                    .orElseThrow(() -> new IllegalStateException("Admin role is missing"));
+            settings.setFirstPublicRegistrationCompleted(true);
+        }
 
         UserEntity user = new UserEntity();
         user.setUsername(request.username());
@@ -77,7 +93,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setEnabled(true);
         user.setRoles(new HashSet<>());
-        user.getRoles().add(userRole);
+        user.getRoles().add(role);
 
         UserEntity saved = userRepository.save(user);
         return toMeResponse(UserPrincipal.from(saved), saved.getEmail());

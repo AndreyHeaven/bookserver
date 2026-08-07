@@ -41,6 +41,7 @@ export interface BookDetailsDto {
   fileType: string
   fileSize: number | null
   annotation: string | null
+  keywords?: string | null
   genres: GenreBriefDto[]
   series: BookSeriesDto[]
   files: BookFileDto[]

@@ -12,10 +12,20 @@ const router = useRouter()
       <v-list-group v-if="node.children && node.children.length">
         <template #activator="{ props }">
           <v-list-item
-            v-bind="props"
             :title="`${node.title} (${node.bookCount})`"
-            @click.stop="router.push(`/genres/${node.id}`)"
-          />
+            @click="router.push(`/genres/${node.id}`)"
+          >
+            <template #append>
+              <v-btn
+                v-bind="props"
+                icon="mdi-chevron-down"
+                variant="text"
+                size="small"
+                aria-label="Раскрыть поджанры"
+                @click.stop
+              />
+            </template>
+          </v-list-item>
         </template>
         <GenreTree :nodes="node.children" />
       </v-list-group>
