@@ -17,7 +17,7 @@ const hiddenAuthorsCount = computed(() => props.book.authors.length - visibleAut
     <v-img
       v-if="book.coverUrl"
       :src="book.coverUrl"
-      height="180"
+      aspect-ratio="2 / 3"
       cover
     >
       <template #placeholder>
@@ -31,7 +31,7 @@ const hiddenAuthorsCount = computed(() => props.book.authors.length - visibleAut
         </div>
       </template>
     </v-img>
-    <div v-else class="book-card__cover-fallback" style="height: 180px">
+    <div v-else class="book-card__cover-fallback book-card__cover-fallback--portrait">
       <v-icon icon="mdi-book-open-page-variant" size="48" />
     </div>
     <v-card-title class="text-body-1 text-wrap">{{ book.title }}</v-card-title>
@@ -79,5 +79,8 @@ const hiddenAuthorsCount = computed(() => props.book.authors.length - visibleAut
   height: 100%;
   background-color: rgba(var(--v-theme-on-surface), 0.06);
   color: rgba(var(--v-theme-on-surface), 0.38);
+}
+.book-card__cover-fallback--portrait {
+  aspect-ratio: 2 / 3;
 }
 </style>

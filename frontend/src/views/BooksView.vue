@@ -250,8 +250,16 @@ function onRowClick(_event: unknown, row: { item: BookCardDto }) {
   <v-progress-linear v-if="loading" indeterminate class="mt-2 mb-2" />
       <template v-if="hasResults">
         <v-row v-if="viewMode === 'cards'" class="mt-1">
-          <v-col v-for="book in books" :key="book.id" cols="12" sm="6" md="4" lg="3">
-            <BookCard :book="book" />
+          <v-col
+            v-for="book in books"
+            :key="book.id"
+            cols="12"
+            sm="6"
+            md="4"
+            lg="2"
+            class="d-flex justify-center"
+          >
+            <BookCard :book="book" class="books-view__card" />
           </v-col>
         </v-row>
         <v-data-table
@@ -312,6 +320,11 @@ function onRowClick(_event: unknown, row: { item: BookCardDto }) {
 </template>
 
 <style scoped>
+.books-view__card {
+  width: 100%;
+  max-width: 220px;
+}
+
 .books-table__cover-fallback {
   display: flex;
   align-items: center;
