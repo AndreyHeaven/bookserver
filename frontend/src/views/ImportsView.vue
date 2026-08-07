@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onUnmounted, ref } from 'vue'
 import { importsApi } from '@/api/imports'
-import type { ArchiveImportMode, ImporterType, ImportJobDto } from '@/types'
+import type { ArchiveImportMode, ImporterType, ImportJobDto, ImportJobMessageLevel } from '@/types'
 
 const types: { title: string; value: ImporterType }[] = [
   { title: 'INPX ZIP', value: 'inpx-zip' },
@@ -74,6 +74,14 @@ function progressPercent(job: ImportJobDto): number {
   return Math.min(100, Math.round((job.processedCount / job.totalCount) * 100))
 }
 
+function messageColor(level: ImportJobMessageLevel): string {
+  return level === 'ERROR' ? 'error' : 'warning'
+}
+
+function messageLabel(level: ImportJobMessageLevel): string {
+  return level === 'ERROR' ? 'Ошибка' : 'Предупреждение'
+}
+
 load()
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
@@ -127,7 +135,15 @@ onUnmounted(() => {
         <td>{{ j.sourcePath }}</td>
         <td><v-chip size="small" :color="statusColor(j.status)">{{ j.status }}</v-chip></td>
         <td>{{ j.processedCount }} из {{ j.totalCount }} ({{ progressPercent(j) }}%)</td>
-        <td class="job-message">{{ j.message }}</td>
+        <td class="job-message">
+          <div v-for="(message, index) in j.messages" :key="index" class="mb-1">
+            <v-chip size="x-small" :color="messageColor(message.level)" class="mr-1">
+              {{ messageLabel(message.level) }}
+            </v-chip>
+            {{ message.message }}
+          </div>
+          <span v-if="j.messages.length === 0">{{ j.message }}</span>
+        </td>
       </tr>
     </tbody>
   </v-table>

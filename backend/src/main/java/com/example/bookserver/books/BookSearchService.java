@@ -50,9 +50,7 @@ public class BookSearchService {
         Pageable pageable = pageable(request.page(), request.size(), request.sort(), defaultSearchSort(request.q()));
         FacetFilter filter = filter(request, true);
         Page<BookSearchProjection> hits = bookRepository.search(request.q(), filter, pageable);
-        Page<BookCardDto> cards = toCards(hits, pageable);
-        FacetCountsDto facets = toDto(bookRepository.facetCounts(request.q(), filter));
-        return BookSearchResponse.of(cards, facets);
+        return BookSearchResponse.of(toCards(hits, pageable));
     }
 
     public FacetCountsDto facets(BookSearchRequest request) {

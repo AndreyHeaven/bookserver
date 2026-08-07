@@ -47,7 +47,7 @@ class BookSearchControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].title").value("Эхо далекой звезды"))
                 .andExpect(jsonPath("$.content[0].authors[0].fullName").value("Толстой Алексей Николаевич"))
-                .andExpect(jsonPath("$.facets.langs[0].value").value("ru"));
+                .andExpect(jsonPath("$.facets").doesNotExist());
 
         mockMvc.perform(get("/api/books/{id}", f.echoBookId())
                         .header("Authorization", "Bearer " + token))

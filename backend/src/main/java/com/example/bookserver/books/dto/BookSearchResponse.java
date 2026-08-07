@@ -8,16 +8,14 @@ public record BookSearchResponse(List<BookCardDto> content,
                                  long totalElements,
                                  int totalPages,
                                  int page,
-                                 int size,
-                                 FacetCountsDto facets) {
+                                 int size) {
 
-    public static BookSearchResponse of(Page<BookCardDto> page, FacetCountsDto facets) {
+    public static BookSearchResponse of(Page<BookCardDto> page) {
         return new BookSearchResponse(
                 page.getContent(),
                 page.getTotalElements(),
                 page.getTotalPages(),
                 page.getNumber(),
-                page.getSize(),
-                facets);
+                page.getSize());
     }
 }

@@ -2,6 +2,12 @@ export type JobStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCEL
 
 export type ImporterType = 'inpx-zip' | 'fb2-folder'
 export type ArchiveImportMode = 'importAll' | 'skipByName' | 'skipByHash'
+export type ImportJobMessageLevel = 'WARNING' | 'ERROR'
+
+export interface ImportJobMessage {
+  level: ImportJobMessageLevel
+  message: string
+}
 
 export interface ImportJobDto {
   id: number
@@ -9,6 +15,7 @@ export interface ImportJobDto {
   sourcePath: string
   status: JobStatus
   message: string | null
+  messages: ImportJobMessage[]
   createdAt: string
   startedAt: string | null
   finishedAt: string | null

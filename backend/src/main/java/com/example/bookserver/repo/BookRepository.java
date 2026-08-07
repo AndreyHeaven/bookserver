@@ -3,17 +3,23 @@ package com.example.bookserver.repo;
 import com.example.bookserver.domain.Book;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 public interface BookRepository extends JpaRepository<Book, Long>, BookSearchRepository {
 
     Optional<Book> findByMd5(String md5);
+
+    @Override
+    @EntityGraph(attributePaths = {"authors", "authors.person", "files"})
+    List<Book> findAllById(Iterable<Long> ids);
 
     @Query("SELECT b.md5 FROM Book b WHERE b.md5 IN :md5s")
     Set<String> findExistingMd5s(@Param("md5s") Collection<String> md5s);

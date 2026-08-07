@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Covers the default /api/books browse query: deleted=false ordered by title, id. -->
+    <changeSet id="009-001-add-active-books-title-index" author="bookserver" runInTransaction="false">
+        <sql>CREATE INDEX CONCURRENTLY idx_books_active_title_id ON books (title ASC, id ASC) WHERE deleted = false</sql>
+        <rollback>
+            <sql>DROP INDEX CONCURRENTLY IF EXISTS idx_books_active_title_id</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

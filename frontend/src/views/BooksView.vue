@@ -68,7 +68,6 @@ async function load() {
   try {
     const { data } = await booksApi.search(buildQuery())
     books.value = data.content
-    facets.value = data.facets
     totalPages.value = data.totalPages || 1
     totalElements.value = data.totalElements
   } finally {
@@ -76,8 +75,14 @@ async function load() {
   }
 }
 
+async function loadFacets() {
+  const { data } = await booksApi.facets(appliedFilters.value)
+  facets.value = data
+}
+
 function search() {
   saveAppliedFilters()
+  void loadFacets()
   if (page.value === 1) {
     load()
   } else {
@@ -117,7 +122,7 @@ async function openRandomBook() {
 
 watch(page, load)
 
-load()
+void Promise.all([load(), loadFacets()])
 
 const hasResults = computed(() => books.value.length > 0)
 

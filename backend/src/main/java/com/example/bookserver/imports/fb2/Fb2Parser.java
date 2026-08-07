@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import java.io.BufferedInputStream;
 import java.io.InputStream;
@@ -59,8 +60,11 @@ public class Fb2Parser {
         String first = null;
         String middle = null;
         String last = null;
-        while (reader.hasNext()) {
-            int event = reader.next();
+        boolean titleInfoComplete = false;
+        boolean bodyMalformed = false;
+        try {
+            while (reader.hasNext()) {
+                int event = reader.next();
             if (event == XMLStreamConstants.START_ELEMENT) {
                 String name = reader.getLocalName();
                 if ("title-info".equals(name)) {
@@ -106,30 +110,36 @@ public class Fb2Parser {
                         default -> { }
                     }
                 }
-            } else if (event == XMLStreamConstants.END_ELEMENT) {
-                String name = reader.getLocalName();
-                if (isAuthorField(name)) {
-                    currentAuthorField = null;
-                } else if (inTitleInfo && "author".equals(name)) {
-                    authors.add(new ImportedAuthor(last, first, middle));
-                } else if ("coverpage".equals(name)) {
-                    inCoverpage = false;
-                } else if ("title-info".equals(name)) {
-                    inTitleInfo = false;
-                    // If there is a cover reference, keep scanning the document for the
-                    // matching <binary>; otherwise avoid reading the whole file for nothing.
-                    if (coverHref == null) {
-                        break;
+                } else if (event == XMLStreamConstants.END_ELEMENT) {
+                    String name = reader.getLocalName();
+                    if (isAuthorField(name)) {
+                        currentAuthorField = null;
+                    } else if (inTitleInfo && "author".equals(name)) {
+                        authors.add(new ImportedAuthor(last, first, middle));
+                    } else if ("coverpage".equals(name)) {
+                        inCoverpage = false;
+                    } else if ("title-info".equals(name)) {
+                        inTitleInfo = false;
+                        titleInfoComplete = true;
+                        // Keep scanning to validate the remainder and locate an optional cover.
+                        // A malformed body is reported to the import job as a warning.
                     }
                 }
             }
+        } catch (XMLStreamException e) {
+            // Large FB2 collections contain documents with a valid description but broken
+            // body markup. Metadata is sufficient for import; only the optional cover is lost.
+            if (!titleInfoComplete) {
+                throw e;
+            }
+            bodyMalformed = true;
         }
         if (title == null || title.isBlank()) {
             title = "Без названия";
 //            throw new IllegalArgumentException("FB2 book-title is missing");
         }
         return new Fb2Metadata(title.trim(), authors, genres, series, lang, year, annotation,
-                coverImage, coverContentType);
+                coverImage, coverContentType, bodyMalformed);
     }
 
     /**

@@ -13,5 +13,6 @@
     <include file="db/changelog/changes/006-seed-genres.xml"/>
     <include file="db/changelog/changes/007-book-file-archive-entry.xml"/>
     <include file="db/changelog/changes/008-book-cover.xml"/>
+    <include file="db/changelog/changes/009-books-browse-index.xml"/>
 
 </databaseChangeLog>

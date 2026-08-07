@@ -76,7 +76,6 @@ export interface BookSearchResponse {
   totalPages: number
   page: number
   size: number
-  facets: FacetCountsDto
 }
 
 export interface BookSearchQuery {

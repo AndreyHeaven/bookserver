@@ -78,7 +78,8 @@ public class Fb2FolderImporter extends AbstractZipBookImporter {
 
         for (Path file : fb2Files) {
             try {
-                importStandalone(file);
+                Fb2Metadata metadata = importStandalone(file);
+                reportMalformedBody(progress, file.toString(), metadata);
             } catch (Exception e) {
                 handleError(progress, stopOnError, "Failed to import file " + file + ": " + errorMessage(e));
             }
@@ -94,13 +95,14 @@ public class Fb2FolderImporter extends AbstractZipBookImporter {
     }
 
     /** Stores a standalone FB2 file directly (no archive entry reference). */
-    private void importStandalone(Path file) throws ImportException {
+    private Fb2Metadata importStandalone(Path file) throws ImportException {
         Fb2Metadata metadata;
         try (InputStream input = Files.newInputStream(file)) {
             metadata = parser.parse(input);
             // store(Path) lets the storage layer decide whether to copy or reference in place.
             StoredFile stored = storage.store(file);
             write(metadata, stored, null, null);
+            return metadata;
         } catch (Exception e) {
             log.error("Error parsing fb2 file: {}", file, e);
             throw new ImportException("Error parsing fb2 file: "+file);
@@ -134,6 +136,7 @@ public class Fb2FolderImporter extends AbstractZipBookImporter {
                         }
                         StoredFile stored = new StoredFile(storedArchive.path(), digest.size(), digest.md5());
                         write(metadata, stored, archiveName, entry.getName());
+                        reportMalformedBody(progress, archivePath + "!" + entry.getName(), metadata);
                         progress.update(++processed, total);
                     } catch (Exception e) {
                         String message = "Failed to import archive entry " + archivePath + "!" + entry.getName()
@@ -162,6 +165,13 @@ public class Fb2FolderImporter extends AbstractZipBookImporter {
             case SKIP_BY_NAME -> archiveExistsByName(archiveName);
             case SKIP_BY_HASH -> allEntriesAlreadyImported(zip, entries);
         };
+    }
+
+    private static void reportMalformedBody(ImportJobProgress progress, String source, Fb2Metadata metadata) {
+        if (metadata.bodyMalformed()) {
+            progress.warning("Imported " + source
+                    + " with malformed XML after metadata; the optional cover may be unavailable");
+        }
     }
 
     private static void handleError(ImportJobProgress progress, boolean stopOnError, String message)

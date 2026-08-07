@@ -12,6 +12,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 
@@ -45,14 +47,20 @@ public class ImportWorker {
                 }
 
                 @Override
+                public void warning(String message) {
+                    appendMessage(jobId, ImportJobMessageLevel.WARNING, message);
+                }
+
+                @Override
                 public void error(String message) {
-                    appendError(jobId, message);
+                    appendMessage(jobId, ImportJobMessageLevel.ERROR, message);
                 }
             });
             markFinished(jobId, ImportStatus.SUCCEEDED, null);
         } catch (Exception e) {
             log.error("Import job {} (type={}, source={}) failed", jobId, type, source, e);
-            appendError(jobId, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+            appendMessage(jobId, ImportJobMessageLevel.ERROR,
+                    e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
             markFinished(jobId, ImportStatus.FAILED, null);
         }
     }
@@ -75,15 +83,42 @@ public class ImportWorker {
         });
     }
 
-    private void appendError(Long jobId, String message) {
+    private void appendMessage(Long jobId, ImportJobMessageLevel level, String message) {
         transactionTemplate.executeWithoutResult(tx -> {
             ImportJob job = importJobRepository.findById(jobId).orElseThrow();
-            String currentMessage = job.getMessage();
-            job.setMessage(currentMessage == null || currentMessage.isBlank()
-                    ? message
-                    : currentMessage + System.lineSeparator() + message);
+            job.setMessage(serializeMessages(appendMessage(parseMessages(job.getMessage()), level, message)));
             importJobRepository.save(job);
         });
+    }
+
+    private static List<ImportJobMessage> parseMessages(String value) {
+        List<ImportJobMessage> messages = new ArrayList<>();
+        if (value == null || value.isBlank()) {
+            return messages;
+        }
+        for (String line : value.split("\\R")) {
+            if (line.startsWith("[WARNING] ")) {
+                messages.add(new ImportJobMessage(ImportJobMessageLevel.WARNING, line.substring(10)));
+            } else if (line.startsWith("[ERROR] ")) {
+                messages.add(new ImportJobMessage(ImportJobMessageLevel.ERROR, line.substring(8)));
+            } else if (!line.isBlank()) {
+                messages.add(new ImportJobMessage(ImportJobMessageLevel.ERROR, line));
+            }
+        }
+        return messages;
+    }
+
+    private static List<ImportJobMessage> appendMessage(List<ImportJobMessage> messages,
+                                                          ImportJobMessageLevel level,
+                                                          String message) {
+        messages.add(new ImportJobMessage(level, message));
+        return messages;
+    }
+
+    private static String serializeMessages(List<ImportJobMessage> messages) {
+        return messages.stream()
+                .map(message -> "[" + message.level() + "] " + message.message())
+                .collect(java.util.stream.Collectors.joining(System.lineSeparator()));
     }
 
     private void markFinished(Long jobId, ImportStatus status, String message) {

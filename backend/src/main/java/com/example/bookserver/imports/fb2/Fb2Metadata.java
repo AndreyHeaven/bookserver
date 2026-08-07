@@ -13,5 +13,6 @@ public record Fb2Metadata(String title,
                           Integer year,
                           String annotation,
                           byte[] coverImage,
-                          String coverContentType) {
+                          String coverContentType,
+                          boolean bodyMalformed) {
 }
