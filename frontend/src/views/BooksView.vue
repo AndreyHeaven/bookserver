@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter, type LocationQuery, type LocationQueryRaw } from 'vue-router'
 import { booksApi } from '@/api/books'
 import BookCard from '@/components/BookCard.vue'
 import BookFacets from '@/components/BookFacets.vue'
@@ -8,6 +8,7 @@ import { usePreferencesStore, type ViewMode } from '@/stores/preferences'
 import type { BookCardDto, BookSearchQuery, FacetCountsDto } from '@/types'
 import type { GenreOption } from '@/utils/genres'
 
+const route = useRoute()
 const router = useRouter()
 const preferences = usePreferencesStore()
 
@@ -63,6 +64,58 @@ function saveAppliedFilters() {
   }
 }
 
+function firstQueryValue(value: LocationQuery[string]): string | undefined {
+  if (Array.isArray(value)) return value[0] ?? undefined
+  return value ?? undefined
+}
+
+function parseInteger(value: string | undefined, min: number): number | undefined {
+  if (value == null || !/^\d+$/.test(value)) return undefined
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) && parsed >= min ? parsed : undefined
+}
+
+function parseIntegerList(value: LocationQuery[string], min: number): number[] {
+  const values = Array.isArray(value) ? value : [value]
+  return [...new Set(values
+    .filter((item): item is string => item != null)
+    .map((item) => parseInteger(item, min))
+    .filter((item): item is number => item != null))]
+}
+
+function applyRouteQuery(query: LocationQuery) {
+  q.value = firstQueryValue(query.q) ?? ''
+  lang.value = (Array.isArray(query.lang) ? query.lang : [query.lang])
+    .filter((item): item is string => item != null && item.length > 0)
+  yearFrom.value = parseInteger(firstQueryValue(query.year_from), 0) ?? null
+  yearTo.value = parseInteger(firstQueryValue(query.year_to), 0) ?? null
+  genreIds.value = parseIntegerList(query.genre_id, 1)
+  page.value = parseInteger(firstQueryValue(query.page), 1) ?? 1
+  saveAppliedFilters()
+}
+
+function buildRouteQuery(): LocationQueryRaw {
+  const query: LocationQueryRaw = {}
+  if (appliedFilters.value.q) query.q = appliedFilters.value.q
+  if (appliedFilters.value.lang?.length) query.lang = appliedFilters.value.lang
+  if (appliedFilters.value.year_from != null) query.year_from = String(appliedFilters.value.year_from)
+  if (appliedFilters.value.year_to != null) query.year_to = String(appliedFilters.value.year_to)
+  if (appliedFilters.value.genre_id?.length) {
+    query.genre_id = appliedFilters.value.genre_id.map(String)
+  }
+  if (page.value > 1) query.page = String(page.value)
+  return query
+}
+
+function syncRoute() {
+  const target = router.resolve({ name: 'books', query: buildRouteQuery() }).fullPath
+  if (target === route.fullPath) {
+    void Promise.all([load(), loadFacets()])
+    return
+  }
+  void router.push({ name: 'books', query: buildRouteQuery() })
+}
+
 async function load() {
   loading.value = true
   try {
@@ -82,11 +135,10 @@ async function loadFacets() {
 
 function search() {
   saveAppliedFilters()
-  void loadFacets()
-  if (page.value === 1) {
-    load()
-  } else {
+  if (page.value !== 1) {
     page.value = 1
+  } else {
+    syncRoute()
   }
 }
 
@@ -120,9 +172,16 @@ async function openRandomBook() {
   }
 }
 
-watch(page, load)
+watch(page, syncRoute, { flush: 'sync' })
 
-void Promise.all([load(), loadFacets()])
+watch(
+  () => route.query,
+  (query) => {
+    applyRouteQuery(query)
+    void Promise.all([load(), loadFacets()])
+  },
+  { immediate: true },
+)
 
 const hasResults = computed(() => books.value.length > 0)
 
@@ -147,7 +206,11 @@ function authorsText(book: BookCardDto): string {
 }
 
 function openBook(book: BookCardDto) {
-  router.push(`/books/${book.id}`)
+  router.push({
+    name: 'book-details',
+    params: { id: book.id },
+    query: { returnTo: route.fullPath },
+  })
 }
 
 function onRowClick(_event: unknown, row: { item: BookCardDto }) {
@@ -259,7 +322,7 @@ function onRowClick(_event: unknown, row: { item: BookCardDto }) {
             lg="2"
             class="d-flex justify-center"
           >
-            <BookCard :book="book" class="books-view__card" />
+            <BookCard :book="book" :return-to="route.fullPath" class="books-view__card" />
           </v-col>
         </v-row>
         <v-data-table

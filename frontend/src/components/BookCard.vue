@@ -5,15 +5,26 @@ import type { BookCardDto } from '@/types'
 
 const MAX_AUTHORS = 2
 
-const props = defineProps<{ book: BookCardDto }>()
+const props = defineProps<{
+  book: BookCardDto
+  returnTo?: string
+}>()
 const router = useRouter()
+
+function openBook() {
+  router.push({
+    name: 'book-details',
+    params: { id: props.book.id },
+    query: props.returnTo ? { returnTo: props.returnTo } : undefined,
+  })
+}
 
 const visibleAuthors = computed(() => props.book.authors.slice(0, MAX_AUTHORS))
 const hiddenAuthorsCount = computed(() => props.book.authors.length - visibleAuthors.value.length)
 </script>
 
 <template>
-  <v-card class="d-flex flex-column h-100" @click="router.push(`/books/${book.id}`)">
+  <v-card class="d-flex flex-column h-100" @click="openBook">
     <v-img
       v-if="book.coverUrl"
       :src="book.coverUrl"
@@ -50,7 +61,7 @@ const hiddenAuthorsCount = computed(() => props.book.authors.length - visibleAut
         size="small"
         variant="tonal"
         :title="book.authors.slice(MAX_AUTHORS).map((a) => a.fullName).join(', ')"
-        @click.stop="router.push(`/books/${book.id}`)"
+        @click.stop="openBook"
       >
         +{{ hiddenAuthorsCount }}
       </v-chip>

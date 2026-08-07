@@ -60,12 +60,21 @@ async function addToList() {
   addMsg.value = 'Книга добавлена в список'
 }
 
+function goBack() {
+  const returnTo = route.query.returnTo
+  if (typeof returnTo === 'string' && /^\/books(?:\?|$)/.test(returnTo)) {
+    void router.push(returnTo)
+    return
+  }
+  void router.push({ name: 'books' })
+}
+
 watch(() => route.params.id, (id) => load(Number(id)), { immediate: true })
 </script>
 
 <template>
   <div v-if="book">
-    <v-btn variant="text" prepend-icon="mdi-arrow-left" @click="router.back()">Назад</v-btn>
+    <v-btn variant="text" prepend-icon="mdi-arrow-left" @click="goBack">Назад</v-btn>
 
     <div class="d-flex flex-column flex-sm-row ga-4 my-2">
       <v-img
