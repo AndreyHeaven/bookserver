@@ -28,7 +28,7 @@ public class OpdsController {
         this.xmlWriter = xmlWriter;
     }
 
-    @GetMapping
+    @GetMapping({"", "/"})
     @Operation(summary = "OPDS root navigation feed")
     public ResponseEntity<byte[]> root() {
         return render(feedService.root());

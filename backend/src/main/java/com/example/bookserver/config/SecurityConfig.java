@@ -18,6 +18,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -66,7 +67,7 @@ public class SecurityConfig {
                 // authenticate against /opds/** using their username/password.
                 .httpBasic(org.springframework.security.config.Customizer.withDefaults())
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .authenticationEntryPoint(opdsAuthenticationEntryPoint(authenticationEntryPoint))
                         .accessDeniedHandler(accessDeniedHandler))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -111,6 +112,25 @@ public class SecurityConfig {
                 request.getRequestURI(),
                 objectMapper
         );
+    }
+
+    /**
+     * OPDS clients discover Basic authentication from the WWW-Authenticate challenge.
+     * API clients keep receiving the project's JSON error response.
+     */
+    @Bean
+    public AuthenticationEntryPoint opdsAuthenticationEntryPoint(AuthenticationEntryPoint jsonAuthenticationEntryPoint) {
+        BasicAuthenticationEntryPoint basicAuthenticationEntryPoint = new BasicAuthenticationEntryPoint();
+        basicAuthenticationEntryPoint.setRealmName("BookServer OPDS");
+        basicAuthenticationEntryPoint.afterPropertiesSet();
+
+        return (request, response, authException) -> {
+            if (request.getRequestURI().startsWith(request.getContextPath() + "/opds")) {
+                basicAuthenticationEntryPoint.commence(request, response, authException);
+                return;
+            }
+            jsonAuthenticationEntryPoint.commence(request, response, authException);
+        };
     }
 
     @Bean
