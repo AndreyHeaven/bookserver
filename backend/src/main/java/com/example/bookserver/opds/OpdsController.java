@@ -1,7 +1,12 @@
 package com.example.bookserver.opds;
 
+import com.example.bookserver.books.BookDownloadService;
+import com.example.bookserver.books.BookDownloadService.BookFileDownload;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,10 +27,14 @@ public class OpdsController {
 
     private final OpdsFeedService feedService;
     private final OpdsXmlWriter xmlWriter;
+    private final BookDownloadService downloadService;
 
-    public OpdsController(OpdsFeedService feedService, OpdsXmlWriter xmlWriter) {
+    public OpdsController(OpdsFeedService feedService,
+                          OpdsXmlWriter xmlWriter,
+                          BookDownloadService downloadService) {
         this.feedService = feedService;
         this.xmlWriter = xmlWriter;
+        this.downloadService = downloadService;
     }
 
     @GetMapping({"", "/"})
@@ -83,6 +92,22 @@ public class OpdsController {
     @Operation(summary = "OPDS acquisition feed of a book list's contents")
     public ResponseEntity<byte[]> listBooks(@PathVariable Long id) {
         return render(feedService.listBooks(id));
+    }
+
+    @GetMapping("/books/{bookId}/files/{fileId}")
+    @Operation(summary = "Download a book file through the OPDS catalog")
+    public ResponseEntity<Resource> download(@PathVariable Long bookId, @PathVariable Long fileId) {
+        BookFileDownload download = downloadService.prepare(bookId, fileId);
+        ContentDisposition disposition = ContentDisposition.attachment()
+                .filename(download.fileName(), java.nio.charset.StandardCharsets.UTF_8)
+                .build();
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .contentType(download.contentType());
+        if (download.sizeBytes() != null) {
+            response.contentLength(download.sizeBytes());
+        }
+        return response.body(download.resource());
     }
 
     private ResponseEntity<byte[]> render(OpdsFeed feed) {

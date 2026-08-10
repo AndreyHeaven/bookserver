@@ -198,7 +198,7 @@ public class OpdsFeedService {
     }
 
     private OpdsLink acquisitionLink(BookFile file) {
-        String href = "/api/books/" + file.getBook().getId() + "/files/" + file.getId();
+        String href = OpdsConstants.BASE_PATH + "/books/" + file.getBook().getId() + "/files/" + file.getId();
         String type = OpdsConstants.acquisitionType(file.getFormat());
         String title = file.getFormat() == null ? "Скачать"
                 : "Скачать " + file.getFormat().toUpperCase(Locale.ROOT);
