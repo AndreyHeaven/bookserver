@@ -108,6 +108,18 @@ public class AuthorsService {
                 """, (rs, rowNum) -> new AlphabetBucketDto(rs.getString("letter"), rs.getLong("count")));
     }
 
+    /** Returns the next available surname prefixes for an existing prefix. */
+    public List<String> nextSurnamePrefixes(String prefix) {
+        return jdbcTemplate.query("""
+                SELECT DISTINCT substring(p.last_name from char_length(:prefix) + 1 for 1) AS next_letter
+                  FROM persons p
+                 WHERE p.last_name ILIKE :prefixPattern
+                   AND char_length(p.last_name) > char_length(:prefix)
+                 ORDER BY next_letter
+                """, Map.of("prefix", prefix, "prefixPattern", prefix + "%"),
+                (rs, rowNum) -> prefix + rs.getString("next_letter"));
+    }
+
     private QueryParts authorWhere(String q, String letter) {
         Map<String, Object> params = new HashMap<>();
         StringBuilder where = new StringBuilder(" WHERE 1=1 ");
@@ -116,8 +128,8 @@ public class AuthorsService {
             params.put("q", q);
         }
         if (letter != null && !letter.isBlank()) {
-            where.append(" AND upper(substring(p.last_name from 1 for 1)) = upper(:letter) ");
-            params.put("letter", letter);
+            where.append(" AND p.last_name ILIKE :lastNamePrefix ");
+            params.put("lastNamePrefix", letter + "%");
         }
         return new QueryParts(where.toString(), params);
     }

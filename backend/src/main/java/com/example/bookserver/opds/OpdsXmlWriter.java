@@ -43,6 +43,30 @@ public class OpdsXmlWriter {
         return out.toByteArray();
     }
 
+    /** Renders the OpenSearch descriptor that advertises the OPDS book search. */
+    public byte[] writeOpenSearchDescription() {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try {
+            XMLStreamWriter xml = outputFactory.createXMLStreamWriter(out, StandardCharsets.UTF_8.name());
+            xml.writeStartDocument(StandardCharsets.UTF_8.name(), "1.0");
+            xml.writeStartElement("OpenSearchDescription");
+            xml.writeDefaultNamespace("http://a9.com/-/spec/opensearch/1.1/");
+            writeTextElement(xml, "ShortName", "BookServer");
+            writeTextElement(xml, "Description", "Поиск книг в BookServer");
+            xml.writeStartElement("Url");
+            xml.writeAttribute("type", OpdsConstants.ACQUISITION_TYPE);
+            xml.writeAttribute("template", OpdsConstants.BASE_PATH + "/search?q={searchTerms}&page={startPage?}");
+            xml.writeEndElement();
+            xml.writeEndElement();
+            xml.writeEndDocument();
+            xml.flush();
+            xml.close();
+        } catch (XMLStreamException e) {
+            throw new UncheckedIOException(new java.io.IOException("Failed to render OpenSearch description", e));
+        }
+        return out.toByteArray();
+    }
+
     private void writeFeed(XMLStreamWriter xml, OpdsFeed feed) throws XMLStreamException {
         xml.writeStartElement("feed");
         xml.writeDefaultNamespace(OpdsConstants.ATOM_NS);
@@ -64,6 +88,9 @@ public class OpdsXmlWriter {
         }
         if (feed.nextHref() != null) {
             writeLink(xml, new OpdsLink(OpdsConstants.REL_NEXT, feed.nextHref(), feed.selfType()));
+        }
+        for (OpdsLink link : nullSafe(feed.links())) {
+            writeLink(xml, link);
         }
 
         for (OpdsEntry entry : feed.entries()) {

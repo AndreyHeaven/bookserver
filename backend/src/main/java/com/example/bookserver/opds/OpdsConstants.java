@@ -24,6 +24,9 @@ public final class OpdsConstants {
     public static final String ACQUISITION_TYPE =
             "application/atom+xml;profile=opds-catalog;kind=acquisition";
 
+    /** Content type of an OpenSearch description document. */
+    public static final String OPENSEARCH_DESCRIPTION_TYPE = "application/opensearchdescription+xml";
+
     // Atom / OPDS link relations.
     public static final String REL_SELF = "self";
     public static final String REL_START = "start";
@@ -31,6 +34,7 @@ public final class OpdsConstants {
     public static final String REL_NEXT = "next";
     public static final String REL_PREVIOUS = "previous";
     public static final String REL_SUBSECTION = "subsection";
+    public static final String REL_SEARCH = "search";
     public static final String REL_ACQUISITION = "http://opds-spec.org/acquisition";
     public static final String REL_SORT_NEW = "http://opds-spec.org/sort/new";
 

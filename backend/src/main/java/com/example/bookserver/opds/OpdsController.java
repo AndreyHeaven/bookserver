@@ -49,6 +49,21 @@ public class OpdsController {
         return render(feedService.newBooks(page));
     }
 
+    @GetMapping(value = "/search.xml", produces = OpdsConstants.OPENSEARCH_DESCRIPTION_TYPE)
+    @Operation(summary = "OpenSearch description for OPDS book search")
+    public ResponseEntity<byte[]> searchDescription() {
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(OpdsConstants.OPENSEARCH_DESCRIPTION_TYPE + ";charset=UTF-8"))
+                .body(xmlWriter.writeOpenSearchDescription());
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "OPDS acquisition feed of book search results")
+    public ResponseEntity<byte[]> search(@RequestParam String q,
+                                         @RequestParam(defaultValue = "0") int page) {
+        return render(feedService.search(q, page));
+    }
+
     @GetMapping("/authors")
     @Operation(summary = "OPDS navigation feed of author alphabet buckets")
     public ResponseEntity<byte[]> authors() {
@@ -56,7 +71,7 @@ public class OpdsController {
     }
 
     @GetMapping("/authors/letter/{letter}")
-    @Operation(summary = "OPDS navigation feed of authors by first letter")
+    @Operation(summary = "OPDS navigation feed of authors by surname prefix")
     public ResponseEntity<byte[]> authorsByLetter(@PathVariable String letter,
                                                   @RequestParam(defaultValue = "0") int page) {
         return render(feedService.authorsByLetter(letter, page));
@@ -112,7 +127,7 @@ public class OpdsController {
 
     private ResponseEntity<byte[]> render(OpdsFeed feed) {
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(feed.selfType()))
+                .contentType(MediaType.parseMediaType(feed.selfType() + ";charset=UTF-8"))
                 .body(xmlWriter.write(feed));
     }
 }

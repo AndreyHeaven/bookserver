@@ -1,6 +1,8 @@
 package com.example.bookserver.opds;
 
 import com.example.bookserver.authors.AuthorsService;
+import com.example.bookserver.books.BookSearchService;
+import com.example.bookserver.books.dto.BookCardDto;
 import com.example.bookserver.authors.dto.AlphabetBucketDto;
 import com.example.bookserver.authors.dto.AuthorCardDto;
 import com.example.bookserver.authors.dto.AuthorDetailsDto;
@@ -19,6 +21,7 @@ import com.example.bookserver.repo.BookListRepository;
 import com.example.bookserver.repo.BookRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,17 +48,20 @@ public class OpdsFeedService {
     static final int PAGE_SIZE = 30;
 
     private final BookRepository bookRepository;
+    private final BookSearchService bookSearchService;
     private final AuthorsService authorsService;
     private final GenresService genresService;
     private final BookListRepository bookListRepository;
     private final ListAccessGuard listGuard;
 
     public OpdsFeedService(BookRepository bookRepository,
+                           BookSearchService bookSearchService,
                            AuthorsService authorsService,
                            GenresService genresService,
                            BookListRepository bookListRepository,
                            ListAccessGuard listGuard) {
         this.bookRepository = bookRepository;
+        this.bookSearchService = bookSearchService;
         this.authorsService = authorsService;
         this.genresService = genresService;
         this.bookListRepository = bookListRepository;
@@ -75,7 +81,9 @@ public class OpdsFeedService {
                         OpdsConstants.BASE_PATH + "/genres", OpdsConstants.NAVIGATION_TYPE, OpdsConstants.REL_SUBSECTION),
                 navEntry("root:lists", "Списки", "Мои списки книг",
                         OpdsConstants.BASE_PATH + "/lists", OpdsConstants.NAVIGATION_TYPE, OpdsConstants.REL_SUBSECTION));
-        return navFeed("root", "Каталог книг", OpdsConstants.BASE_PATH, null, entries);
+        return navFeed("root", "Каталог книг", OpdsConstants.BASE_PATH, null, entries,
+                List.of(new OpdsLink(OpdsConstants.REL_SEARCH, OpdsConstants.BASE_PATH + "/search.xml",
+                        OpdsConstants.OPENSEARCH_DESCRIPTION_TYPE)));
     }
 
     // ----------------------------------------------------------------- new
@@ -86,6 +94,22 @@ public class OpdsFeedService {
         List<OpdsEntry> entries = books.getContent().stream().map(this::bookEntry).toList();
         String base = OpdsConstants.BASE_PATH + "/new";
         return acquisitionFeed("new", "Новинки", base, OpdsConstants.BASE_PATH, page, books, entries);
+    }
+
+    /** Acquisition feed of books found through the OPDS OpenSearch endpoint. */
+    public OpdsFeed search(String query, int page) {
+        Page<BookCardDto> books = bookSearchService.searchBooks(query, null, null, null,
+                List.of(), null, true, page, PAGE_SIZE, null, Sort.unsorted());
+        List<OpdsEntry> entries = books.getContent().stream()
+                .map(BookCardDto::id)
+                .map(bookRepository::findById)
+                .flatMap(java.util.Optional::stream)
+                .filter(book -> !book.isDeleted())
+                .map(this::bookEntry)
+                .toList();
+        String base = OpdsConstants.BASE_PATH + "/search?q=" + encodeQueryParameter(query);
+        return acquisitionFeed("search:" + query, "Поиск: «" + query + "»", base,
+                OpdsConstants.BASE_PATH, page, books, entries);
     }
 
     // -------------------------------------------------------------- authors
@@ -100,11 +124,16 @@ public class OpdsFeedService {
                 OpdsConstants.BASE_PATH, entries);
     }
 
-    /** Navigation feed listing authors whose surname starts with {@code letter}. */
+    /** Navigation feed listing authors and next surname-prefix choices. */
     public OpdsFeed authorsByLetter(String letter, int page) {
         AuthorSearchRequest request = new AuthorSearchRequest(null, letter, page, PAGE_SIZE, null);
         Page<AuthorCardDto> authors = authorsService.search(request);
-        List<OpdsEntry> entries = authors.getContent().stream().map(this::authorEntry).toList();
+        List<OpdsEntry> entries = new ArrayList<>();
+        if (page == 0) {
+            authorsService.nextSurnamePrefixes(letter)
+                    .forEach(prefix -> entries.add(prefixEntry(prefix)));
+        }
+        authors.getContent().forEach(author -> entries.add(authorEntry(author)));
         String base = OpdsConstants.BASE_PATH + "/authors/letter/" + encode(letter);
         return navFeedPaged("authors:letter:" + letter, "Авторы на «" + letter + "»",
                 base, OpdsConstants.BASE_PATH + "/authors", page, authors, entries);
@@ -212,6 +241,12 @@ public class OpdsFeedService {
                 OpdsConstants.NAVIGATION_TYPE, OpdsConstants.REL_SUBSECTION);
     }
 
+    private OpdsEntry prefixEntry(String prefix) {
+        return navEntry("authors:letter:" + prefix, prefix, "Продолжить выбор автора",
+                OpdsConstants.BASE_PATH + "/authors/letter/" + encode(prefix),
+                OpdsConstants.NAVIGATION_TYPE, OpdsConstants.REL_SUBSECTION);
+    }
+
     private OpdsEntry authorEntry(AuthorCardDto author) {
         return navEntry("author:" + author.id(), author.fullName(),
                 author.bookCount() + " кн.",
@@ -242,8 +277,13 @@ public class OpdsFeedService {
 
     private OpdsFeed navFeed(String idSuffix, String title, String selfHref,
                              String upHref, List<OpdsEntry> entries) {
+        return navFeed(idSuffix, title, selfHref, upHref, entries, List.of());
+    }
+
+    private OpdsFeed navFeed(String idSuffix, String title, String selfHref,
+                             String upHref, List<OpdsEntry> entries, List<OpdsLink> links) {
         return new OpdsFeed(urn(idSuffix), title, now(), selfHref,
-                OpdsConstants.NAVIGATION_TYPE, upHref, null, null, entries);
+                OpdsConstants.NAVIGATION_TYPE, upHref, null, null, links, entries);
     }
 
     private OpdsFeed navFeedPaged(String idSuffix, String title, String base, String upHref,
@@ -282,6 +322,10 @@ public class OpdsFeedService {
 
     private static String encode(String value) {
         return UriUtils.encodePathSegment(value, StandardCharsets.UTF_8);
+    }
+
+    private static String encodeQueryParameter(String value) {
+        return UriUtils.encodeQueryParam(value, StandardCharsets.UTF_8);
     }
 
     private static OffsetDateTime now() {

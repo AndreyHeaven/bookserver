@@ -52,6 +52,12 @@ class AuthorsControllerIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].fullName").value("Толстой Алексей Николаевич"));
 
+        mockMvc.perform(get("/api/authors")
+                        .header("Authorization", "Bearer " + token)
+                        .param("letter", "Тол"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].fullName").value("Толстой Алексей Николаевич"));
+
         mockMvc.perform(get("/api/authors/alphabet")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())

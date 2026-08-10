@@ -14,6 +14,7 @@ import java.util.List;
  * @param upHref   optional parent-feed path ({@code rel=up}), may be {@code null}
  * @param prevHref optional previous-page path ({@code rel=previous}), may be {@code null}
  * @param nextHref optional next-page path ({@code rel=next}), may be {@code null}
+ * @param links    optional additional feed-level links
  * @param entries  feed entries
  */
 public record OpdsFeed(String id,
@@ -24,5 +25,18 @@ public record OpdsFeed(String id,
                        String upHref,
                        String prevHref,
                        String nextHref,
+                       List<OpdsLink> links,
                        List<OpdsEntry> entries) {
+
+    public OpdsFeed(String id,
+                    String title,
+                    OffsetDateTime updated,
+                    String selfHref,
+                    String selfType,
+                    String upHref,
+                    String prevHref,
+                    String nextHref,
+                    List<OpdsEntry> entries) {
+        this(id, title, updated, selfHref, selfType, upHref, prevHref, nextHref, List.of(), entries);
+    }
 }
