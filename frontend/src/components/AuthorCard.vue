@@ -7,7 +7,7 @@ const router = useRouter()
 </script>
 
 <template>
-  <v-card @click="router.push(`/authors/${author.id}`)">
+  <v-card @click="router.push({ name: 'books', query: { author_id: String(author.id) } })">
     <v-card-item>
       <template #prepend>
         <v-avatar color="primary">

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, type LocationQuery, type LocationQueryRaw } from 'vue-router'
+import { authorsApi } from '@/api/authors'
 import { booksApi } from '@/api/books'
 import { genresApi } from '@/api/genres'
 import BookCard from '@/components/BookCard.vue'
 import BookFacets from '@/components/BookFacets.vue'
 import { usePreferencesStore, type ViewMode } from '@/stores/preferences'
-import type { BookCardDto, BookSearchQuery, FacetCountsDto } from '@/types'
+import type { AuthorDetailsDto, BookCardDto, BookSearchQuery, FacetCountsDto } from '@/types'
 import { flattenGenres, type GenreOption } from '@/utils/genres'
 
 const route = useRoute()
@@ -33,6 +34,8 @@ const lang = ref<string[]>([])
 const yearFrom = ref<number | null>(null)
 const yearTo = ref<number | null>(null)
 const genreIds = ref<number[]>([])
+const authorId = ref<number | null>(null)
+const author = ref<AuthorDetailsDto | null>(null)
 const includeSubgenres = ref(true)
 const page = ref(1)
 const size = ref(24)
@@ -57,6 +60,14 @@ onMounted(() => {
   void loadGenreOptions()
 })
 
+async function loadAuthor(id: number | null) {
+  author.value = null
+  if (id == null) return
+
+  const { data } = await authorsApi.get(id)
+  if (authorId.value === id) author.value = data
+}
+
 function buildQuery(): BookSearchQuery {
   return {
     ...appliedFilters.value,
@@ -72,6 +83,7 @@ function saveAppliedFilters() {
     year_from: yearFrom.value ?? undefined,
     year_to: yearTo.value ?? undefined,
     genre_id: genreIds.value.length ? [...genreIds.value] : undefined,
+    author_id: authorId.value ?? undefined,
     include_subgenres: genreIds.value.length ? includeSubgenres.value : undefined,
   }
 }
@@ -102,6 +114,8 @@ function applyRouteQuery(query: LocationQuery) {
   yearFrom.value = parseInteger(firstQueryValue(query.year_from), 0) ?? null
   yearTo.value = parseInteger(firstQueryValue(query.year_to), 0) ?? null
   genreIds.value = parseIntegerList(query.genre_id, 1)
+  authorId.value = parseInteger(firstQueryValue(query.author_id), 1) ?? null
+  void loadAuthor(authorId.value)
   includeSubgenres.value = firstQueryValue(query.include_subgenres) !== 'false'
   page.value = parseInteger(firstQueryValue(query.page), 1) ?? 1
   saveAppliedFilters()
@@ -117,6 +131,7 @@ function buildRouteQuery(): LocationQueryRaw {
     query.genre_id = appliedFilters.value.genre_id.map(String)
     if (appliedFilters.value.include_subgenres === false) query.include_subgenres = 'false'
   }
+  if (appliedFilters.value.author_id != null) query.author_id = String(appliedFilters.value.author_id)
   if (page.value > 1) query.page = String(page.value)
   return query
 }
@@ -162,7 +177,15 @@ function resetFilters() {
   yearFrom.value = null
   yearTo.value = null
   genreIds.value = []
+  authorId.value = null
+  author.value = null
   includeSubgenres.value = true
+  search()
+}
+
+function clearAuthor() {
+  authorId.value = null
+  author.value = null
   search()
 }
 
@@ -281,6 +304,14 @@ function onRowClick(_event: unknown, row: { item: BookCardDto }) {
         <div v-if="!filtersOpen && activeFiltersSummary" class="text-caption text-medium-emphasis mt-2">
           {{ activeFiltersSummary }}
         </div>
+        <v-chip
+          v-if="author"
+          class="mt-2"
+          closable
+          @click:close="clearAuthor"
+        >
+          Автор: {{ author.fullName }}
+        </v-chip>
 
         <v-expand-transition>
           <div v-if="filtersOpen" class="mt-4">

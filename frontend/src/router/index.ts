@@ -32,8 +32,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'authors', name: 'authors', component: () => import('@/views/AuthorsView.vue') },
       {
         path: 'authors/:id',
-        name: 'author-details',
-        component: () => import('@/views/AuthorDetailsView.vue'),
+        redirect: (to) => ({ name: 'books', query: { author_id: String(to.params.id) } }),
       },
       { path: 'genres', name: 'genres', component: () => import('@/views/GenresView.vue') },
       {

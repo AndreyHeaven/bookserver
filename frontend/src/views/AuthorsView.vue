@@ -70,7 +70,7 @@ loadAlphabet()
 load()
 
 function openAuthor(author: AuthorCardDto) {
-  router.push(`/authors/${author.id}`)
+  router.push({ name: 'books', query: { author_id: String(author.id) } })
 }
 
 function onRowClick(_event: unknown, row: { item: AuthorCardDto }) {
