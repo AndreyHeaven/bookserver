@@ -18,6 +18,9 @@ function buildParams(query: BookSearchQuery): URLSearchParams {
   if (query.genre_id) {
     for (const g of query.genre_id) params.append('genre_id', String(g))
   }
+  if (query.include_subgenres != null) {
+    params.set('include_subgenres', String(query.include_subgenres))
+  }
   if (query.page != null) params.set('page', String(query.page))
   if (query.size != null) params.set('size', String(query.size))
   if (query.sort) params.set('sort', query.sort)

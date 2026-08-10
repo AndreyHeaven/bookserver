@@ -10,6 +10,7 @@ withDefaults(defineProps<{
   yearFrom: number | null
   yearTo: number | null
   genreIds: number[]
+  includeSubgenres: boolean
 }>(), {
   lang: () => [],
 })
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   'update:yearFrom': [value: number | null]
   'update:yearTo': [value: number | null]
   'update:genreIds': [value: number[]]
+  'update:includeSubgenres': [value: boolean]
   'loaded:genres': [value: GenreOption[]]
 }>()
 
@@ -103,5 +105,15 @@ onMounted(loadGenres)
           />
         </template>
     </v-autocomplete>
+    <v-switch
+      :model-value="includeSubgenres"
+      label="Включать поджанры"
+      color="primary"
+      density="compact"
+      hide-details
+      class="mt-2"
+      :disabled="genreIds.length === 0"
+      @update:model-value="emit('update:includeSubgenres', Boolean($event))"
+    />
   </div>
 </template>

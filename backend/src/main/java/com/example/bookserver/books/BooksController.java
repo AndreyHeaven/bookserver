@@ -50,11 +50,12 @@ public class BooksController {
                                      @RequestParam(name = "year_from", required = false) Integer yearFrom,
                                      @RequestParam(name = "year_to", required = false) Integer yearTo,
                                      @RequestParam(name = "genre_id", required = false) List<Long> genreId,
+                                     @RequestParam(name = "include_subgenres", required = false) Boolean includeSubgenres,
                                      @RequestParam(name = "author_id", required = false) Long authorId,
                                      @RequestParam(required = false) Integer page,
                                      @RequestParam(required = false) Integer size,
                                      @RequestParam(required = false) String sort) {
-        return service.search(new BookSearchRequest(q, lang, yearFrom, yearTo, genreId, authorId, page, size, sort));
+        return service.search(new BookSearchRequest(q, lang, yearFrom, yearTo, genreId, authorId, page, size, sort), includeSubgenres);
     }
 
     @GetMapping("/facets")
@@ -64,8 +65,9 @@ public class BooksController {
                                  @RequestParam(name = "year_from", required = false) Integer yearFrom,
                                  @RequestParam(name = "year_to", required = false) Integer yearTo,
                                  @RequestParam(name = "genre_id", required = false) List<Long> genreId,
+                                 @RequestParam(name = "include_subgenres", required = false) Boolean includeSubgenres,
                                  @RequestParam(name = "author_id", required = false) Long authorId) {
-        return service.facets(new BookSearchRequest(q, lang, yearFrom, yearTo, genreId, authorId, 0, 20, null));
+        return service.facets(new BookSearchRequest(q, lang, yearFrom, yearTo, genreId, authorId, 0, 20, null), includeSubgenres);
     }
 
     @GetMapping("/{id}")

@@ -13,7 +13,7 @@ const router = useRouter()
         <template #activator="{ props }">
           <v-list-item
             :title="`${node.title} (${node.bookCount})`"
-            @click="router.push(`/genres/${node.id}`)"
+            @click="router.push({ name: 'books', query: { genre_id: String(node.id) } })"
           >
             <template #append>
               <v-btn
@@ -32,7 +32,7 @@ const router = useRouter()
       <v-list-item
         v-else
         :title="`${node.title} (${node.bookCount})`"
-        @click="router.push(`/genres/${node.id}`)"
+        @click="router.push({ name: 'books', query: { genre_id: String(node.id) } })"
       />
     </template>
   </v-list>

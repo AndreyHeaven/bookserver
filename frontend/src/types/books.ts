@@ -85,6 +85,7 @@ export interface BookSearchQuery {
   year_from?: number
   year_to?: number
   genre_id?: number[]
+  include_subgenres?: boolean
   author_id?: number
   page?: number
   size?: number

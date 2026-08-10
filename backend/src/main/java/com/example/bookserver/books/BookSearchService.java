@@ -46,15 +46,15 @@ public class BookSearchService {
         this.mapper = mapper;
     }
 
-    public BookSearchResponse search(BookSearchRequest request) {
+    public BookSearchResponse search(BookSearchRequest request, Boolean includeSubgenres) {
         Pageable pageable = pageable(request.page(), request.size(), request.sort(), defaultSearchSort(request.q()));
-        FacetFilter filter = filter(request, true);
+        FacetFilter filter = filter(request, includeSubgenres == null || includeSubgenres);
         Page<BookSearchProjection> hits = bookRepository.search(request.q(), filter, pageable);
         return BookSearchResponse.of(toCards(hits, pageable));
     }
 
-    public FacetCountsDto facets(BookSearchRequest request) {
-        return toDto(bookRepository.facetCounts(request.q(), filter(request, true)));
+    public FacetCountsDto facets(BookSearchRequest request, Boolean includeSubgenres) {
+        return toDto(bookRepository.facetCounts(request.q(), filter(request, includeSubgenres == null || includeSubgenres)));
     }
 
     public BookDetailsDto getDetails(Long id) {
@@ -172,7 +172,7 @@ public class BookSearchService {
     }
 
     private static Sort defaultSearchSort(String q) {
-        return q == null || q.isBlank() ? Sort.by("title").ascending() : Sort.unsorted();
+        return q == null || q.isBlank() ? Sort.by("updatedAt").descending() : Sort.unsorted();
     }
 
     public static Sort authorBooksSort() {

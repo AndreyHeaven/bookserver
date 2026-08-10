@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, type LocationQuery, type LocationQueryRaw } from 'vue-router'
 import { booksApi } from '@/api/books'
+import { genresApi } from '@/api/genres'
 import BookCard from '@/components/BookCard.vue'
 import BookFacets from '@/components/BookFacets.vue'
 import { usePreferencesStore, type ViewMode } from '@/stores/preferences'
 import type { BookCardDto, BookSearchQuery, FacetCountsDto } from '@/types'
-import type { GenreOption } from '@/utils/genres'
+import { flattenGenres, type GenreOption } from '@/utils/genres'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,6 +33,7 @@ const lang = ref<string[]>([])
 const yearFrom = ref<number | null>(null)
 const yearTo = ref<number | null>(null)
 const genreIds = ref<number[]>([])
+const includeSubgenres = ref(true)
 const page = ref(1)
 const size = ref(24)
 
@@ -45,6 +47,15 @@ const filtersOpen = ref(false)
 const genreOptions = ref<GenreOption[]>([])
 
 const appliedFilters = ref<Omit<BookSearchQuery, 'page' | 'size'>>({})
+
+async function loadGenreOptions() {
+  const { data } = await genresApi.tree()
+  genreOptions.value = flattenGenres(data)
+}
+
+onMounted(() => {
+  void loadGenreOptions()
+})
 
 function buildQuery(): BookSearchQuery {
   return {
@@ -61,6 +72,7 @@ function saveAppliedFilters() {
     year_from: yearFrom.value ?? undefined,
     year_to: yearTo.value ?? undefined,
     genre_id: genreIds.value.length ? [...genreIds.value] : undefined,
+    include_subgenres: genreIds.value.length ? includeSubgenres.value : undefined,
   }
 }
 
@@ -90,6 +102,7 @@ function applyRouteQuery(query: LocationQuery) {
   yearFrom.value = parseInteger(firstQueryValue(query.year_from), 0) ?? null
   yearTo.value = parseInteger(firstQueryValue(query.year_to), 0) ?? null
   genreIds.value = parseIntegerList(query.genre_id, 1)
+  includeSubgenres.value = firstQueryValue(query.include_subgenres) !== 'false'
   page.value = parseInteger(firstQueryValue(query.page), 1) ?? 1
   saveAppliedFilters()
 }
@@ -102,6 +115,7 @@ function buildRouteQuery(): LocationQueryRaw {
   if (appliedFilters.value.year_to != null) query.year_to = String(appliedFilters.value.year_to)
   if (appliedFilters.value.genre_id?.length) {
     query.genre_id = appliedFilters.value.genre_id.map(String)
+    if (appliedFilters.value.include_subgenres === false) query.include_subgenres = 'false'
   }
   if (page.value > 1) query.page = String(page.value)
   return query
@@ -148,6 +162,7 @@ function resetFilters() {
   yearFrom.value = null
   yearTo.value = null
   genreIds.value = []
+  includeSubgenres.value = true
   search()
 }
 
@@ -275,10 +290,12 @@ function onRowClick(_event: unknown, row: { item: BookCardDto }) {
               :year-from="yearFrom"
               :year-to="yearTo"
               :genre-ids="genreIds"
+              :include-subgenres="includeSubgenres"
               @update:lang="lang = $event"
               @update:year-from="yearFrom = $event"
               @update:year-to="yearTo = $event"
               @update:genre-ids="genreIds = $event"
+              @update:include-subgenres="includeSubgenres = $event"
               @loaded:genres="genreOptions = $event"
             />
           </div>
