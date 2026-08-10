@@ -13,6 +13,15 @@ const generatedPassword = ref<string | null>(null)
 const passwordDialogOpen = ref(false)
 const error = ref<string | null>(null)
 
+const roleLabels: Record<string, string> = {
+  ROLE_ADMIN: 'Администратор',
+  ROLE_USER: 'Пользователь',
+}
+
+function formatRoles(roles: string[]): string {
+  return roles.map((role) => roleLabels[role] ?? role).join(', ')
+}
+
 async function loadUsers() {
   loading.value = true
   error.value = null
@@ -95,12 +104,37 @@ onMounted(async () => {
             <tbody>
               <tr v-for="user in users" :key="user.id">
                 <td>{{ user.username }}<div class="text-caption">{{ user.email }}</div></td>
-                <td>{{ user.roles.join(', ') }}</td>
-                <td>{{ user.enabled ? 'Активен' : 'Отключён' }}</td>
+                <td>{{ formatRoles(user.roles) }}</td>
+                <td>
+                  <v-icon
+                    :color="user.enabled ? 'success' : 'error'"
+                    :icon="user.enabled ? 'mdi-check-circle' : 'mdi-close-circle'"
+                    :title="user.enabled ? 'Активен' : 'Отключён'"
+                  />
+                </td>
                 <td class="text-no-wrap">
-                  <v-btn size="small" variant="text" @click="toggle(user)">{{ user.enabled ? 'Отключить' : 'Включить' }}</v-btn>
-                  <v-btn size="small" variant="text" @click="resetPassword(user)">Сбросить пароль</v-btn>
-                  <v-btn size="small" color="error" variant="text" @click="remove(user)">Удалить</v-btn>
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    :icon="user.enabled ? 'mdi-account-off' : 'mdi-account-check'"
+                    :title="user.enabled ? 'Отключить' : 'Включить'"
+                    @click="toggle(user)"
+                  />
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    icon="mdi-lock-reset"
+                    title="Сбросить пароль"
+                    @click="resetPassword(user)"
+                  />
+                  <v-btn
+                    size="small"
+                    color="error"
+                    variant="text"
+                    icon="mdi-delete"
+                    title="Удалить"
+                    @click="remove(user)"
+                  />
                 </td>
               </tr>
             </tbody>
