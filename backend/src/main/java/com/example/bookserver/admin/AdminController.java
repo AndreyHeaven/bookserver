@@ -4,6 +4,7 @@ import com.example.bookserver.admin.AdminService.PasswordResetResponse;
 import com.example.bookserver.admin.AdminService.SiteSettingsDto;
 import com.example.bookserver.admin.AdminService.UpdateSiteSettingsRequest;
 import com.example.bookserver.admin.AdminService.UserDto;
+import com.example.bookserver.history.BookViewHistoryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -26,8 +28,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminController {
 
     private final AdminService service;
+    private final BookViewHistoryService historyService;
 
-    public AdminController(AdminService service) { this.service = service; }
+    public AdminController(AdminService service, BookViewHistoryService historyService) {
+        this.service = service;
+        this.historyService = historyService;
+    }
 
     @GetMapping("/users")
     public Page<UserDto> users(@RequestParam(required = false) String q, Pageable pageable) {
@@ -45,11 +51,17 @@ public class AdminController {
     @PostMapping("/users/{id}/reset-password")
     public PasswordResetResponse resetPassword(@PathVariable Long id) { return service.resetPassword(id); }
 
+    @GetMapping("/users/{id}/history")
+    public Page<BookViewHistoryService.HistoryDto> history(@PathVariable Long id, Pageable pageable) {
+        historyService.requireUser(id);
+        return historyService.list(id, pageable);
+    }
+
     @GetMapping("/site-settings")
     public SiteSettingsDto settings() { return service.settings(); }
 
     @PutMapping("/site-settings")
-    public SiteSettingsDto updateSettings(@RequestBody UpdateSiteSettingsRequest request) {
+    public SiteSettingsDto updateSettings(@Valid @RequestBody UpdateSiteSettingsRequest request) {
         return service.updateSettings(request);
     }
 }

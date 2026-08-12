@@ -1,6 +1,7 @@
 package com.example.bookserver.admin;
 
 import com.example.bookserver.domain.RoleEntity;
+import com.example.bookserver.history.BookViewHistoryService;
 import com.example.bookserver.domain.SiteSettings;
 import com.example.bookserver.domain.UserEntity;
 import com.example.bookserver.repo.SiteSettingsRepository;
@@ -24,13 +25,15 @@ public class AdminService {
     private final UserRepository userRepository;
     private final SiteSettingsRepository settingsRepository;
     private final PasswordEncoder passwordEncoder;
+    private final BookViewHistoryService historyService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AdminService(UserRepository userRepository, SiteSettingsRepository settingsRepository,
-                        PasswordEncoder passwordEncoder) {
+                        PasswordEncoder passwordEncoder, BookViewHistoryService historyService) {
         this.userRepository = userRepository;
         this.settingsRepository = settingsRepository;
         this.passwordEncoder = passwordEncoder;
+        this.historyService = historyService;
     }
 
     @Transactional(readOnly = true)
@@ -49,6 +52,9 @@ public class AdminService {
     public SiteSettingsDto updateSettings(UpdateSiteSettingsRequest request) {
         SiteSettings settings = settingsRepository.lockSingleton();
         settings.setRegistrationEnabled(request.registrationEnabled());
+        settings.setHistoryRetentionDays(request.historyRetentionDays());
+        settings.setHistoryMaxEntries(request.historyMaxEntries());
+        historyService.applyLimits(settings);
         return SiteSettingsDto.from(settings);
     }
 
@@ -112,9 +118,11 @@ public class AdminService {
                     user.getCreatedAt());
         }
     }
-    public record SiteSettingsDto(boolean registrationEnabled) {
-        static SiteSettingsDto from(SiteSettings settings) { return new SiteSettingsDto(settings.isRegistrationEnabled()); }
+    public record SiteSettingsDto(boolean registrationEnabled, int historyRetentionDays, int historyMaxEntries) {
+        static SiteSettingsDto from(SiteSettings settings) { return new SiteSettingsDto(settings.isRegistrationEnabled(), settings.getHistoryRetentionDays(), settings.getHistoryMaxEntries()); }
     }
-    public record UpdateSiteSettingsRequest(boolean registrationEnabled) { }
+    public record UpdateSiteSettingsRequest(boolean registrationEnabled,
+                                            @jakarta.validation.constraints.Min(1) int historyRetentionDays,
+                                            @jakarta.validation.constraints.Min(1) int historyMaxEntries) { }
     public record PasswordResetResponse(String password) { }
 }

@@ -11,6 +11,7 @@ const items = computed(() => [
   { title: 'Авторы', icon: 'mdi-account-group', to: '/authors' },
   { title: 'Жанры', icon: 'mdi-tag-multiple', to: '/genres' },
   { title: 'Мои списки', icon: 'mdi-format-list-bulleted', to: '/lists' },
+  { title: 'История просмотров', icon: 'mdi-history', to: '/history' },
   ...(auth.isAdmin ? [
     { title: 'Импорт', icon: 'mdi-database-import', to: '/imports' },
     { title: 'Администрирование', icon: 'mdi-shield-crown', to: '/admin' },

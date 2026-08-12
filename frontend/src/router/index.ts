@@ -40,6 +40,8 @@ const routes: RouteRecordRaw[] = [
         redirect: (to) => ({ name: 'books', query: { genre_id: String(to.params.id) } }),
       },
       { path: 'lists', name: 'my-lists', component: () => import('@/views/MyListsView.vue') },
+      { path: 'history', name: 'history', component: () => import('@/views/HistoryView.vue') },
+      { path: 'history', name: 'history', component: () => import('@/views/HistoryView.vue') },
       {
         path: 'lists/:id',
         name: 'list-details',

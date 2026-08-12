@@ -8,10 +8,17 @@ const query = ref('')
 const page = ref(1)
 const totalPages = ref(1)
 const registrationEnabled = ref(true)
+const historyRetentionDays = ref(365)
+const historyMaxEntries = ref(100)
 const loading = ref(false)
 const generatedPassword = ref<string | null>(null)
 const passwordDialogOpen = ref(false)
 const error = ref<string | null>(null)
+const historyDialogOpen = ref(false)
+const historyUser = ref<AdminUser | null>(null)
+const historyEntries = ref<{ id: number; bookId: number; title: string; coverUrl: string; viewedAt: string }[]>([])
+const historyPage = ref(1)
+const historyTotalPages = ref(1)
 
 const roleLabels: Record<string, string> = {
   ROLE_ADMIN: 'Администратор',
@@ -37,9 +44,31 @@ async function loadUsers() {
 }
 
 async function saveSettings() {
-  const { data } = await adminApi.updateSettings(registrationEnabled.value)
+  const { data } = await adminApi.updateSettings({
+    registrationEnabled: registrationEnabled.value,
+    historyRetentionDays: historyRetentionDays.value,
+    historyMaxEntries: historyMaxEntries.value,
+  })
   registrationEnabled.value = data.registrationEnabled
+  historyRetentionDays.value = data.historyRetentionDays
+  historyMaxEntries.value = data.historyMaxEntries
 }
+
+async function openHistory(user: AdminUser) {
+  historyUser.value = user
+  historyPage.value = 1
+  historyDialogOpen.value = true
+  await loadUserHistory()
+}
+
+async function loadUserHistory() {
+  if (!historyUser.value) return
+  const { data } = await adminApi.userHistory(historyUser.value.id, historyPage.value - 1)
+  historyEntries.value = data.content
+  historyTotalPages.value = Math.max(data.page.totalPages, 1)
+}
+
+watch(historyPage, loadUserHistory)
 
 async function toggle(user: AdminUser) {
   await adminApi.setEnabled(user.id, !user.enabled)
@@ -66,6 +95,8 @@ watch(page, loadUsers)
 onMounted(async () => {
   const { data } = await adminApi.settings()
   registrationEnabled.value = data.registrationEnabled
+  historyRetentionDays.value = data.historyRetentionDays
+  historyMaxEntries.value = data.historyMaxEntries
   await loadUsers()
 })
 </script>
@@ -85,6 +116,14 @@ onMounted(async () => {
           <v-card-title>Настройки сайта</v-card-title>
           <v-card-text>
             <v-switch v-model="registrationEnabled" label="Разрешить публичную регистрацию" color="primary" hide-details />
+            <v-row class="mt-2">
+              <v-col cols="12" sm="6">
+                <v-text-field v-model.number="historyRetentionDays" type="number" label="Хранить историю просмотров, дней" min="1" />
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field v-model.number="historyMaxEntries" type="number" label="Максимум записей истории на пользователя" min="1" />
+              </v-col>
+            </v-row>
           </v-card-text>
           <v-card-actions><v-btn color="primary" @click="saveSettings">Сохранить</v-btn></v-card-actions>
         </v-card>
@@ -123,6 +162,13 @@ onMounted(async () => {
                   <v-btn
                     size="small"
                     variant="text"
+                    icon="mdi-history"
+                    title="История просмотров"
+                    @click="openHistory(user)"
+                  />
+                  <v-btn
+                    size="small"
+                    variant="text"
                     icon="mdi-lock-reset"
                     title="Сбросить пароль"
                     @click="resetPassword(user)"
@@ -152,6 +198,17 @@ onMounted(async () => {
           <v-text-field :model-value="generatedPassword" readonly append-inner-icon="mdi-content-copy" @click:append-inner="copyPassword" />
         </v-card-text>
         <v-card-actions><v-spacer /><v-btn @click="passwordDialogOpen = false; generatedPassword = null">Закрыть</v-btn></v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="historyDialogOpen" max-width="640">
+      <v-card>
+        <v-card-title>История просмотров: {{ historyUser?.username }}</v-card-title>
+        <v-list>
+          <v-list-item v-for="entry in historyEntries" :key="entry.id" :title="entry.title" :subtitle="new Date(entry.viewedAt).toLocaleString()" />
+        </v-list>
+        <v-pagination v-model="historyPage" :length="historyTotalPages" class="my-3" />
+        <v-card-actions><v-spacer /><v-btn @click="historyDialogOpen = false">Закрыть</v-btn></v-card-actions>
       </v-card>
     </v-dialog>
   </div>

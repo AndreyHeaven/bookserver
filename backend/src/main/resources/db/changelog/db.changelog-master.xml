@@ -15,5 +15,6 @@
     <include file="db/changelog/changes/008-book-cover.xml"/>
     <include file="db/changelog/changes/009-books-browse-index.xml"/>
     <include file="db/changelog/changes/010-admin.xml"/>
+    <include file="db/changelog/changes/011-book-view-history.xml"/>
 
 </databaseChangeLog>

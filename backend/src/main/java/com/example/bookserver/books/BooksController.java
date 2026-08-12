@@ -7,6 +7,9 @@ import com.example.bookserver.books.dto.BookSearchRequest;
 import com.example.bookserver.books.dto.BookSearchResponse;
 import com.example.bookserver.books.dto.FacetCountsDto;
 import com.example.bookserver.books.dto.UpdateBookRequest;
+import com.example.bookserver.history.BookViewHistoryService;
+import com.example.bookserver.security.UserPrincipal;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.core.io.Resource;
@@ -35,12 +38,14 @@ public class BooksController {
     private final BookSearchService service;
     private final BookDownloadService downloadService;
     private final BookAdministrationService administrationService;
+    private final BookViewHistoryService historyService;
 
     public BooksController(BookSearchService service, BookDownloadService downloadService,
-                           BookAdministrationService administrationService) {
+                           BookAdministrationService administrationService, BookViewHistoryService historyService) {
         this.service = service;
         this.downloadService = downloadService;
         this.administrationService = administrationService;
+        this.historyService = historyService;
     }
 
     @GetMapping
@@ -72,8 +77,10 @@ public class BooksController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get book details")
-    public BookDetailsDto details(@PathVariable Long id) {
-        return service.getDetails(id);
+    public BookDetailsDto details(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal user) {
+        BookDetailsDto result = service.getDetails(id);
+        if (user != null) historyService.record(user.getId(), id);
+        return result;
     }
 
     @PutMapping("/{id}")

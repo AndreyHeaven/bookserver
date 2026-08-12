@@ -9,6 +9,12 @@ export interface AdminUser {
   createdAt: string
 }
 
+export interface SiteSettings {
+  registrationEnabled: boolean
+  historyRetentionDays: number
+  historyMaxEntries: number
+}
+
 export interface Page<T> {
   content: T[]
   page: {
@@ -28,8 +34,13 @@ export const adminApi = {
   },
   deleteUser(id: number) { return http.delete(`/admin/users/${id}`) },
   resetPassword(id: number) { return http.post<{ password: string }>(`/admin/users/${id}/reset-password`) },
-  settings() { return http.get<{ registrationEnabled: boolean }>('/admin/site-settings') },
-  updateSettings(registrationEnabled: boolean) {
-    return http.put<{ registrationEnabled: boolean }>('/admin/site-settings', { registrationEnabled })
+  settings() { return http.get<SiteSettings>('/admin/site-settings') },
+  updateSettings(settings: SiteSettings) {
+    return http.put<SiteSettings>('/admin/site-settings', settings)
+  },
+  userHistory(id: number, page: number, size = 20) {
+    return http.get<Page<{ id: number; bookId: number; title: string; coverUrl: string; viewedAt: string }>>(
+      `/admin/users/${id}/history`, { params: { page, size, sort: 'viewedAt,desc' } },
+    )
   },
 }
