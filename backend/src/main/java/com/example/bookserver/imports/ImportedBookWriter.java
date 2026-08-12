@@ -17,8 +17,12 @@ import com.example.bookserver.storage.CoverStorage;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.example.bookserver.config.CacheConfig;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.IOException;
 import java.util.LinkedHashSet;
@@ -41,6 +45,7 @@ public class ImportedBookWriter {
     private final BookFileRepository bookFileRepository;
     private final CoverStorage coverStorage;
     private final EntityManager entityManager;
+    private final CacheManager cacheManager;
 
     public ImportedBookWriter(BookRepository bookRepository,
                               PersonRepository personRepository,
@@ -48,7 +53,8 @@ public class ImportedBookWriter {
                               SeriesRepository seriesRepository,
                               BookFileRepository bookFileRepository,
                               CoverStorage coverStorage,
-                              EntityManager entityManager) {
+                              EntityManager entityManager,
+                              CacheManager cacheManager) {
         this.bookRepository = bookRepository;
         this.personRepository = personRepository;
         this.genreRepository = genreRepository;
@@ -56,6 +62,7 @@ public class ImportedBookWriter {
         this.bookFileRepository = bookFileRepository;
         this.coverStorage = coverStorage;
         this.entityManager = entityManager;
+        this.cacheManager = cacheManager;
     }
 
     @Transactional
@@ -144,7 +151,18 @@ public class ImportedBookWriter {
         }
         Book saved = bookRepository.saveAndFlush(book);
         entityManager.refresh(saved);
+        evictSearchCachesAfterCommit();
         return saved;
+    }
+
+    private void evictSearchCachesAfterCommit() {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                cacheManager.getCache(CacheConfig.BOOK_FACETS_CACHE).clear();
+                cacheManager.getCache(CacheConfig.GENRES_TREE_CACHE).clear();
+            }
+        });
     }
 
     private Person upsertPerson(ImportedAuthor author) {

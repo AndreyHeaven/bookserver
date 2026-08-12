@@ -27,6 +27,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework:spring-context-support")
+    implementation("com.github.ben-manes.caffeine:caffeine")
 
     // Liquibase + Postgres.
     // In Spring Boot 4 the auto-configuration for Liquibase moved out of

@@ -16,6 +16,7 @@ import com.example.bookserver.repo.FacetCounts;
 import com.example.bookserver.repo.FacetFilter;
 import com.example.bookserver.repo.GenreRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -53,6 +54,7 @@ public class BookSearchService {
         return BookSearchResponse.of(toCards(hits, pageable));
     }
 
+    @Cacheable(cacheNames = "bookFacets", key = "{#request.q(), #request.lang(), #request.yearFrom(), #request.yearTo(), #request.genreId(), #request.authorId(), #includeSubgenres}")
     public FacetCountsDto facets(BookSearchRequest request, Boolean includeSubgenres) {
         return toDto(bookRepository.facetCounts(request.q(), filter(request, includeSubgenres == null || includeSubgenres)));
     }
