@@ -3,6 +3,7 @@ package com.example.bookserver.admin;
 import com.example.bookserver.admin.AdminService.PasswordResetResponse;
 import com.example.bookserver.admin.AdminService.SiteSettingsDto;
 import com.example.bookserver.admin.AdminService.UpdateSiteSettingsRequest;
+import com.example.bookserver.admin.AdminService.UpdateTelegramUidRequest;
 import com.example.bookserver.admin.AdminService.UserDto;
 import com.example.bookserver.history.BookViewHistoryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,6 +44,12 @@ public class AdminController {
     @PatchMapping("/users/{id}/enabled")
     public UserDto setEnabled(@PathVariable Long id, @RequestParam boolean enabled) {
         return service.setEnabled(id, enabled);
+    }
+
+    @PutMapping("/users/{id}/telegram-uid")
+    public UserDto setTelegramUid(@PathVariable Long id,
+                                  @Valid @RequestBody UpdateTelegramUidRequest request) {
+        return service.setTelegramUid(id, request.telegramUid());
     }
 
     @DeleteMapping("/users/{id}")

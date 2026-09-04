@@ -44,6 +44,9 @@ public class UserEntity {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    @Column(name = "telegram_uid", unique = true)
+    private Long telegramUid;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -94,6 +97,14 @@ public class UserEntity {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public Long getTelegramUid() {
+        return telegramUid;
+    }
+
+    public void setTelegramUid(Long telegramUid) {
+        this.telegramUid = telegramUid;
     }
 
     public OffsetDateTime getCreatedAt() {

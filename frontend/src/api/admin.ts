@@ -5,6 +5,7 @@ export interface AdminUser {
   username: string
   email: string | null
   enabled: boolean
+  telegramUid: number | null
   roles: string[]
   createdAt: string
 }
@@ -31,6 +32,9 @@ export const adminApi = {
   },
   setEnabled(id: number, enabled: boolean) {
     return http.patch<AdminUser>(`/admin/users/${id}/enabled`, null, { params: { enabled } })
+  },
+  setTelegramUid(id: number, telegramUid: number | null) {
+    return http.put<AdminUser>(`/admin/users/${id}/telegram-uid`, { telegramUid })
   },
   deleteUser(id: number) { return http.delete(`/admin/users/${id}`) },
   resetPassword(id: number) { return http.post<{ password: string }>(`/admin/users/${id}/reset-password`) },

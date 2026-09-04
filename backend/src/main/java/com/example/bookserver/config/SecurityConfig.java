@@ -54,7 +54,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/login",
                                 "/api/auth/register",
-                                "/api/auth/refresh").permitAll()
+                                "/api/auth/refresh",
+                                "/api/telegram/webhook").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/telegram/download/*").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**",

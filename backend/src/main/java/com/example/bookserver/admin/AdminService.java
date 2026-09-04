@@ -59,6 +59,13 @@ public class AdminService {
     }
 
     @Transactional
+    public UserDto setTelegramUid(Long id, Long telegramUid) {
+        UserEntity user = protectedTarget(id);
+        user.setTelegramUid(telegramUid);
+        return UserDto.from(user);
+    }
+
+    @Transactional
     public UserDto setEnabled(Long id, boolean enabled) {
         if (!enabled) {
             settingsRepository.lockSingleton();
@@ -110,14 +117,16 @@ public class AdminService {
         return user.getRoles().stream().map(RoleEntity::getName).anyMatch(ADMIN_ROLE::equals);
     }
 
-    public record UserDto(Long id, String username, String email, boolean enabled, java.util.Set<String> roles,
-                          java.time.OffsetDateTime createdAt) {
+    public record UserDto(Long id, String username, String email, boolean enabled, Long telegramUid,
+                          java.util.Set<String> roles, java.time.OffsetDateTime createdAt) {
         static UserDto from(UserEntity user) {
             return new UserDto(user.getId(), user.getUsername(), user.getEmail(), user.isEnabled(),
+                    user.getTelegramUid(),
                     user.getRoles().stream().map(RoleEntity::getName).collect(java.util.stream.Collectors.toSet()),
                     user.getCreatedAt());
         }
     }
+    public record UpdateTelegramUidRequest(@jakarta.validation.constraints.Positive Long telegramUid) { }
     public record SiteSettingsDto(boolean registrationEnabled, int historyRetentionDays, int historyMaxEntries) {
         static SiteSettingsDto from(SiteSettings settings) { return new SiteSettingsDto(settings.isRegistrationEnabled(), settings.getHistoryRetentionDays(), settings.getHistoryMaxEntries()); }
     }

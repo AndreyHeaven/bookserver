@@ -81,6 +81,16 @@ async function remove(user: AdminUser) {
   await loadUsers()
 }
 
+async function saveTelegramUid(user: AdminUser, value: string) {
+  const telegramUid = value.trim() === '' ? null : Number(value)
+  if (telegramUid !== null && (!Number.isSafeInteger(telegramUid) || telegramUid <= 0)) {
+    error.value = 'UID Telegram должен быть положительным целым числом'
+    return
+  }
+  await adminApi.setTelegramUid(user.id, telegramUid)
+  await loadUsers()
+}
+
 async function resetPassword(user: AdminUser) {
   const { data } = await adminApi.resetPassword(user.id)
   generatedPassword.value = data.password
@@ -139,10 +149,20 @@ onMounted(async () => {
           <v-alert v-if="error" type="error" class="ma-3">{{ error }}</v-alert>
           <v-progress-linear v-if="loading" indeterminate />
           <v-table>
-            <thead><tr><th>Пользователь</th><th>Роли</th><th>Статус</th><th>Действия</th></tr></thead>
+            <thead><tr><th>Пользователь</th><th>Telegram UID</th><th>Роли</th><th>Статус</th><th>Действия</th></tr></thead>
             <tbody>
               <tr v-for="user in users" :key="user.id">
                 <td>{{ user.username }}<div class="text-caption">{{ user.email }}</div></td>
+                <td>
+                  <v-text-field
+                    :model-value="user.telegramUid?.toString() ?? ''"
+                    density="compact"
+                    hide-details
+                    label="UID"
+                    style="min-width: 150px"
+                    @update:model-value="saveTelegramUid(user, String($event))"
+                  />
+                </td>
                 <td>{{ formatRoles(user.roles) }}</td>
                 <td>
                   <v-icon
