@@ -12,30 +12,27 @@ import java.time.Duration;
 @ConfigurationProperties(prefix = "app.telegram")
 public record TelegramProperties(
         boolean enabled,
-        Transport transport,
         String botToken,
-        String webhookSecret,
         String publicBaseUrl,
+        /** Bot API endpoint; overridable so tests can point the client at a stand-in server. */
+        String apiUrl,
         @Min(1) @Max(20) int pageSize,
         Duration actionTtl,
         Duration downloadTtl) {
 
+    private static final String DEFAULT_API_URL = "https://api.telegram.org/";
+
     public TelegramProperties {
-        if (enabled && (transport == null || isBlank(botToken) || isBlank(publicBaseUrl)
-                || (transport == Transport.WEBHOOK && isBlank(webhookSecret)))) {
-            throw new IllegalArgumentException("Telegram transport, bot token and public URL are required; webhook also requires its secret");
+        if (enabled && (isBlank(botToken) || isBlank(publicBaseUrl))) {
+            throw new IllegalArgumentException("Telegram bot token and public URL are required when the bot is enabled");
         }
+        apiUrl = isBlank(apiUrl) ? DEFAULT_API_URL : apiUrl;
         if (actionTtl == null || actionTtl.isNegative() || actionTtl.isZero()) {
             throw new IllegalArgumentException("app.telegram.action-ttl must be positive");
         }
         if (downloadTtl == null || downloadTtl.isNegative() || downloadTtl.isZero()) {
             throw new IllegalArgumentException("app.telegram.download-ttl must be positive");
         }
-    }
-
-    public enum Transport {
-        WEBHOOK,
-        LONG_POLLING
     }
 
     private static boolean isBlank(String value) {

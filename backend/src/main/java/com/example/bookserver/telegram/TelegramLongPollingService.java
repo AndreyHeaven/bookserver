@@ -5,59 +5,62 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication;
+import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer;
+import org.telegram.telegrambots.meta.TelegramUrl;
+import org.telegram.telegrambots.meta.api.methods.updates.GetUpdates;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
+/**
+ * Receives updates via long polling. The library owns the polling loop, the update
+ * offset, the {@code deleteWebhook} call on startup and the exponential backoff on
+ * failures, so none of that is reimplemented here.
+ */
 @Service
 public class TelegramLongPollingService implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(TelegramLongPollingService.class);
-    private final TelegramApiClient telegramApiClient;
+    /** Seconds Telegram holds an empty getUpdates call open before answering. */
+    private static final int POLLING_TIMEOUT_SECONDS = 30;
+
+    private final TelegramBotsLongPollingApplication pollingApplication = new TelegramBotsLongPollingApplication();
     private final TelegramBotService botService;
     private final TelegramProperties properties;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final TelegramUrl telegramUrl;
 
-    public TelegramLongPollingService(TelegramApiClient telegramApiClient,
-                                      TelegramBotService botService,
-                                      TelegramProperties properties) {
-        this.telegramApiClient = telegramApiClient;
+    public TelegramLongPollingService(TelegramBotService botService,
+                                      TelegramProperties properties,
+                                      TelegramUrl telegramUrl) {
         this.botService = botService;
         this.properties = properties;
+        this.telegramUrl = telegramUrl;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void start() {
-        if (!properties.enabled() || properties.transport() != TelegramProperties.Transport.LONG_POLLING) {
+        if (!properties.enabled()) {
             return;
         }
-        executor.submit(this::poll);
+        try {
+            pollingApplication.registerBot(
+                    properties.botToken(),
+                    () -> telegramUrl,
+                    this::getUpdates,
+                    (LongPollingSingleThreadUpdateConsumer) botService::handle);
+        } catch (TelegramApiException exception) {
+            log.error("Failed to start Telegram long polling", exception);
+        }
     }
 
-    private void poll() {
-        long offset = 0;
-        telegramApiClient.deleteWebhook();
-        while (!Thread.currentThread().isInterrupted()) {
-            try {
-                List<TelegramUpdate> updates = telegramApiClient.getUpdates(offset, 30);
-                for (TelegramUpdate update : updates) {
-                    botService.handle(update);
-                    offset = update.updateId() + 1;
-                }
-            } catch (RuntimeException exception) {
-                log.warn("Telegram long polling failed", exception);
-                try {
-                    Thread.sleep(1_000);
-                } catch (InterruptedException interruptedException) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
+    private GetUpdates getUpdates(int offset) {
+        return GetUpdates.builder()
+                .offset(offset)
+                .timeout(POLLING_TIMEOUT_SECONDS)
+                .build();
     }
 
     @Override
-    public void close() {
-        executor.shutdownNow();
+    public void close() throws Exception {
+        pollingApplication.close();
     }
 }

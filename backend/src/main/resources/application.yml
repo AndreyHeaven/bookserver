@@ -53,10 +53,10 @@ app:
     storage-mode: ${APP_IMPORTS_STORAGE_MODE:copy}
   telegram:
     enabled: ${APP_TELEGRAM_ENABLED:false}
-    transport: ${APP_TELEGRAM_TRANSPORT:LONG_POLLING}
     bot-token: ${TELEGRAM_BOT_TOKEN:}
-    webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
     public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
+    # Overridable only so tests can point the Bot API client at a stand-in server.
+    api-url: ${TELEGRAM_API_URL:https://api.telegram.org/}
     page-size: 5
     action-ttl: 10m
     download-ttl: 5m

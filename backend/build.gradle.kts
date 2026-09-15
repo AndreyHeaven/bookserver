@@ -20,6 +20,8 @@ extra["springdocVersion"] = "3.0.3"
 extra["jjwtVersion"] = "0.12.6"
 extra["zxingVersion"] = "3.5.3"
 extra["testcontainersVersion"] = "1.21.4"
+extra["telegramBotsVersion"] = "9.0.0"
+extra["mockwebserverVersion"] = "4.12.0"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -50,11 +52,22 @@ dependencies {
     implementation("com.google.zxing:core:${property("zxingVersion")}")
     implementation("com.google.zxing:javase:${property("zxingVersion")}")
 
+    // Telegram Bot API client + long polling (rubenlagus/TelegramBots).
+    // Deliberately NOT the Spring Boot starters: the library's API objects are
+    // annotated with Jackson 2, while Spring Boot 4 serializes MVC payloads with
+    // Jackson 3 (tools.jackson) — routing library types through Spring's message
+    // converters fails to deserialize them. Long polling keeps the library's own
+    // Jackson 2 mapper internal, so the two never meet.
+    implementation("org.telegram:telegrambots-client:${property("telegramBotsVersion")}")
+    implementation("org.telegram:telegrambots-longpolling:${property("telegramBotsVersion")}")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     // Spring Boot 4 split out the MockMvc test slice (AutoConfigureMockMvc etc.)
     // into a dedicated starter; needed for @AutoConfigureMockMvc.
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.security:spring-security-test")
+    // Stands in for api.telegram.org when testing the bot.
+    testImplementation("com.squareup.okhttp3:mockwebserver:${property("mockwebserverVersion")}")
     testImplementation("org.testcontainers:postgresql:${property("testcontainersVersion")}")
     testImplementation("org.testcontainers:junit-jupiter:${property("testcontainersVersion")}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
